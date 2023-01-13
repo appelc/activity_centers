@@ -1,1 +1,1 @@
-# big_grid
+# activity_centers
