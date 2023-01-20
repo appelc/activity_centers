@@ -112,37 +112,38 @@ library(ggplot2)
     
     
   ## add 'any STOC' column  
-    ac21stoc$STOC_ANY <- ifelse() #finish this!!!
-    
+    ac21stoc$STOC_ANY <- 'Y'
+      table(ac21stoc$SO, useNA = 'always')  #should be all of them at this point; double check
+      
+    ac21stoc$STVA_ANY <- ifelse((ac21stoc$STVA_8N %in% 'Y' | ac21stoc$STVA_IRREG %in% 'Y' | ac21stoc$STVA_BEG %in% 'Y' |
+                                  ac21stoc$STVA_PAIR %in% 'Y' | ac21stoc$STVA_INSP %in% 'Y'), 'Y', 'N')
     
   ## save
-    write.csv(ac21stoc, 'output/ac_STOC_2021_cleaned.csv') #latest save 01/17/23
+    # write.csv(ac21stoc, 'output/01_ac_STOC_2021_cleaned.csv') #latest save 01/19/23
 
 
 
-## collapse by station ####
+## clean up, remove non-residents, remove clips with nearby surveys ####
+    
+  # ac21stoc <- fread('output/ac_STOC_2021_cleaned.csv')  #if needed
+    
   head(ac21stoc[,c('SITE','STN','timestamp','PR','M','F','U','JV','SV','NRES','SRV1MILE',
                    'STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR','STOC_IRREG','STOC_4N',
-                   'STVA_IRREG','STVA_PAIR','STVA_BEG','STVA_8N')])
+                   'STVA_IRREG','STVA_PAIR','STVA_BEG','STVA_8N', 'STOC_ANY','STVA_ANY')])
 
   ## remove calls by non-residents
-    table(ac21stoc$SITE, ac21stoc$NRES)  #I thought there were extra ones in Upper Greenleaf?
-    
+    table(ac21stoc$SITE, ac21stoc$NRES)  
     ac21stocRes <- ac21stoc[ac21stoc$NRES %in% '',] #keep target owl calls only
     
-  ## aggregate by site/stn
+  ## clean up fields
     table(ac21stocRes$SITE, ac21stocRes$STN)
     table(ac21stocRes$SITE)    
     table(ac21stocRes$SRC) #what's the difference between dc1 and dc2, etc.?
     
-    ac21stocRes$SITE_STN <- paste(ac21stocRes$SRC, ac21stocRes$STN, sep = '_')
-      table(ac21stocRes$SITE_STN, useNA = 'always')
-    
-    # tmp <- aggregate(ac21stocRes, by = list('SITE_STN'), FUN = 'sum')
-    
-    # tmp2 <- ac21stocRes[,c('SRV1MILE','STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR','STOC_IRREG','STOC_4N',
-    #                    'STVA_IRREG','STVA_PAIR','STVA_BEG','STVA_8N','SITE_STN')]
-    # head(tmp2)    
+    #add site_stn column
+      ac21stocRes$SITE_STN <- paste(ac21stocRes$SRC, formatC(ac21stocRes$STN, width = '2', format = 'd', flag = '0'), 
+                                    sep = '_')
+        table(ac21stocRes$SITE_STN, useNA = 'always')
     
     #convert Y/N columns to numeric
     ac21stocRes$STOC_BARK_N <- ifelse(ac21stocRes$STOC_BARK %in% 'Y',1,0)
@@ -151,26 +152,108 @@ library(ggplot2)
     ac21stocRes$STOC_PAIR_N <- ifelse(ac21stocRes$STOC_PAIR %in% 'Y',1,0)
     ac21stocRes$STOC_IRREG_N <- ifelse(ac21stocRes$STOC_IRREG %in% 'Y',1,0)
     ac21stocRes$STOC_4N_N <- ifelse(ac21stocRes$STOC_4N %in% 'Y',1,0)
+    ac21stocRes$STOC_ANY_N <- ifelse(ac21stocRes$STOC_ANY %in% 'Y',1,0)
 
     ac21stocRes$STVA_IRREG_N <- ifelse(ac21stocRes$STVA_IRREG %in% 'Y',1,0)
     ac21stocRes$STVA_PAIR_N <- ifelse(ac21stocRes$STVA_PAIR %in% 'Y',1,0)    
     ac21stocRes$STVA_BEG_N <- ifelse(ac21stocRes$STVA_BEG %in% 'Y',1,0)
     ac21stocRes$STVA_INSP_N <- ifelse(ac21stocRes$STVA_INSP %in% 'Y',1,0)
     ac21stocRes$STVA_8N_N <- ifelse(ac21stocRes$STVA_8N %in% 'Y',1,0)
+    ac21stocRes$STVA_ANY_N <- ifelse(ac21stocRes$STVA_ANY %in% 'Y',1,0)
     
     ac21stocRes$MALE_N <- ifelse(ac21stocRes$M %in% 'x', 1,0)
-    #add F, etc.
+    ac21stocRes$FEMALE_N <- ifelse(ac21stocRes$F %in% 'x', 1,0)
+    ac21stocRes$UNK_N <- ifelse(ac21stocRes$U %in% 'x', 1,0)
+    ac21stocRes$JUV_N <- ifelse(ac21stocRes$JV %in% 'x', 1,0)
     
-    #aggregate
-      ac21agg <- aggregate(ac21stocRes[,c('STOC_BARK_N','STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N','STOC_IRREG_N','STOC_4N_N',
-                                          'STVA_IRREG_N','STVA_PAIR_N','STVA_BEG_N','STVA_INSP_N','STVA_8N_N')],
-                           by = list(as.factor(ac21stocRes$SITE_STN)), 
-                           FUN = sum)
-      colnames(ac21agg)[1] <- 'SITE_STN'
-      head(ac21agg)
+    #save
+    # write.csv(ac21stocRes, 'output/02_ac_STOC_2021_residents.csv')  #last output 1/13/23
+    
+  ## remove detections within 1 mile of surveys  ***RETURN HERE TO MODIFY REMOVING DETECTIONS WITH SURVEYS WITHIN 1 MILE**
+    table(ac21stocRes$SRV1MILE, useNA = 'always')
+    ac21stocResNosurv1m <- ac21stocRes[ac21stocRes$SRV1MILE %in% 'N',]  #removed 652 rows
+    
+    #save
+    # write.csv(ac21stocResNosurv1m, 'output/03_ac_STOC_2021_noSurveys1mile.csv')
+  
+      
+## aggregate by site/stn ####
+    
+  # ac21stocResNosurv1m <- fread('output/03_ac_STOC_2021_noSurveys1mile.csv') #if needed
+    
+  ac21agg <- aggregate(ac21stocResNosurv1m[,c('STOC_BARK_N','STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N','STOC_IRREG_N','STOC_4N_N','STOC_ANY_N',
+                                      'STVA_IRREG_N','STVA_PAIR_N','STVA_BEG_N','STVA_INSP_N','STVA_8N_N','STVA_ANY_N',
+                                      'MALE_N','FEMALE_N','UNK_N','JUV_N')],
+                       by = list(as.factor(ac21stocResNosurv1m$SITE_STN)), 
+                       FUN = sum)
+  colnames(ac21agg)[1] <- 'SITE_STN'
+  head(ac21agg)
 
-      ## keep in mind these can sum to greater than the number of clips... e.g., a clip can have STOC_BEG and STOC_4N
-      ## so can't add these up to get STOC_ANY for a station
-      ## go back and add 'STOC_ANY' field separately
+    ## keep in mind these can sum to greater than the number of clips... e.g., a clip can have STOC_BEG and STOC_4N
+    ## but the 'STOC_ANY_N' and 'STVA_ANY_N' columns are the total number of clips with any of these species
+    ## (but all STOC columns do not add up to 'STOC_ANY', e.g.)
+    
+  head(ac21agg[,c('SITE_STN','STOC_4N_N','STOC_ANY_N','STVA_8N_N','STVA_ANY_N')])
       
-      
+  #save
+    write.csv(ac21agg, 'output/04_ac_STOC_2021_aggregated.csv')
+    
+    
+## integrate with Julie's outputs ####
+    
+  # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv')
+  
+  #read in cleaned file from Julie  
+  ac21jj <- fread('COA_AC_Work/data_output/COAAC_21_strixSeason_wide.csv')
+  head(ac21jj)    
+    #this dataframe has all the stations (not just ones with STOC detected) so we can get STVA totals, days surveyed, etc.
+  
+  #reformat columns to merge
+  ac21jj$SITESTN <- paste(substr(ac21jj$site, 5,6), sapply(strsplit(as.character(ac21jj$site), '\\-'),'[',2), sep = '_')
+  unique(ac21jj$SITESTN)    
+    
+  ac21agg$SITESTN <- paste(toupper(substr(ac21agg$SITE_STN, 1, 2)),
+                     substr(ac21agg$SITE_STN, 5, 6), sep = '_')
+    
+  #merge
+  ac21merge <- merge(ac21agg, ac21jj, by = c('SITESTN'), all = TRUE)
+  head(ac21merge)    
+  
+  nrow(ac21agg)  
+  nrow(ac21jj)
+  nrow(ac21merge) #good, should be 145 rows (to match ac21jj) ... 37 stations * 4 sites (minus 3 at WC)
+  
+  #keep STVA columns from Julie's; STOC columns from mine (bc it has Chris's final M/F determinations)
+  ac21merge_trim <- ac21merge[,c('SITESTN','minDate','maxDate','nDaysSampled','nDays',
+                                 'STOC_ANY_N','STOC_4N_N','STOC_IRREG_N','STOC_BARK_N','STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N',
+                                 'FEMALE_N','MALE_N','UNK_N','JUV_N','STVA_all','INSP','WHIS_bo','BEG__bo')]
+  head(ac21merge_trim)
+  
+  #add distance from center for each station
+  ac21merge_trim$dist_m <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_trim$SITESTN), as.numeric(1000), NA)
+  ac21merge_trim$dist_m <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_trim$SITESTN), as.numeric(1732), ac21merge_trim$dist_m)
+  ac21merge_trim$dist_m <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_trim$SITESTN), as.numeric(2000), ac21merge_trim$dist_m)
+  ac21merge_trim$dist_m <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_trim$SITESTN), as.numeric(2646), ac21merge_trim$dist_m)
+  ac21merge_trim$dist_m <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_trim$SITESTN), as.numeric(3000), ac21merge_trim$dist_m)
+  ac21merge_trim$dist_m <- ifelse(grepl('19', ac21merge_trim$SITESTN), as.numeric(0), ac21merge_trim$dist_m)
+
+  table(ac21merge_trim$dist_m, useNA = 'always')
+
+  plot(ac21merge_trim$STOC_ANY_N ~ ac21merge_trim$dist_m) #any STOC
+  plot(ac21merge_trim$STOC_4N_N ~ ac21merge_trim$dist_m)  #all STOC
+  
+  plot(ac21merge_trim$STVA_all ~ ac21merge_trim$dist_m)   #any STVA
+  
+  #add repro status of each site
+  ac21merge_trim$reproState <- ifelse(grepl('DC', ac21merge_trim$SITESTN), 'fledged',
+                                      ifelse(grepl('MC', ac21merge_trim$SITESTN), 'nest',
+                                             ifelse(grepl('UG', ac21merge_trim$SITESTN), 'fledged', 'pair')))
+  
+  #save
+    write.csv(ac21merge_trim, 'output/05_ac_2021_merged.csv')
+
+    
+
+    
+  
+  
