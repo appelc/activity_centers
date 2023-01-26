@@ -104,7 +104,7 @@ library(ggplot2)
     
       #look at tags in clips we are removing
       sort(unique(unlist(sapply(strsplit(as.character(ac21[ac21$REMOVE %in% 'y']$FULL_ID), '\\+'), '['))))
-      #note that we are removing some with STVA, STVA_IRREG, or INSP. these were predicted to be STOC by the CNN but were not
+      #note that we are removing some with STVA, STVA_IRREG, or INSP. these were predicted to be STOC by the CNN but were not.
       #all we have here are clips predicted to be STOC, and some also have STVA, but we need the full list of STVA predictions
       #  and validated tags to get those detections
 
@@ -141,11 +141,11 @@ library(ggplot2)
     table(ac21stocRes$SRC) #what's the difference between dc1 and dc2, etc.?
     
     #add site_stn column
-      ac21stocRes$SITE_STN <- paste(ac21stocRes$SRC, formatC(ac21stocRes$STN, width = '2', format = 'd', flag = '0'), 
+      ac21stocRes$SITE_STN <- paste(ac21stocRes$SRC, formatC(ac21stocRes$STN, width = '2', format = 'd', flag = '0'),  #formatC to pad with leading zeroes
                                     sep = '_')
         table(ac21stocRes$SITE_STN, useNA = 'always')
     
-    #convert Y/N columns to numeric
+    #convert Y/N columns to numeric (1/0)
     ac21stocRes$STOC_BARK_N <- ifelse(ac21stocRes$STOC_BARK %in% 'Y',1,0)
     ac21stocRes$STOC_WHIS_N <- ifelse(ac21stocRes$STOC_WHIS %in% 'Y',1,0)
     ac21stocRes$STOC_BEG_N <- ifelse(ac21stocRes$STOC_BEG %in% 'Y',1,0)
@@ -169,14 +169,15 @@ library(ggplot2)
     #save
     # write.csv(ac21stocRes, 'output/02_ac_STOC_2021_residents.csv')  #last output 1/13/23
     
-  ## remove detections within 1 mile of surveys  ***RETURN HERE TO MODIFY REMOVING DETECTIONS WITH SURVEYS WITHIN 1 MILE**
+  ## remove detections within 1 mile of surveys  ***RETURN HERE TO MODIFY REMOVING DETECTIONS WITH SURVEYS WITHIN X DISTANCE**
     table(ac21stocRes$SRV1MILE, useNA = 'always')
     ac21stocResNosurv1m <- ac21stocRes[ac21stocRes$SRV1MILE %in% 'N',]  #removed 652 rows
     
     #save
     # write.csv(ac21stocResNosurv1m, 'output/03_ac_STOC_2021_noSurveys1mile.csv')
   
-      
+
+  
 ## aggregate by site/stn ####
     
   # ac21stocResNosurv1m <- fread('output/03_ac_STOC_2021_noSurveys1mile.csv') #if needed
@@ -187,7 +188,7 @@ library(ggplot2)
                        by = list(as.factor(ac21stocResNosurv1m$SITE_STN)), 
                        FUN = sum)
   colnames(ac21agg)[1] <- 'SITE_STN'
-  head(ac21agg)
+  ac21agg  #45 rows = 45 stations with STOC detections
 
     ## keep in mind these can sum to greater than the number of clips... e.g., a clip can have STOC_BEG and STOC_4N
     ## but the 'STOC_ANY_N' and 'STVA_ANY_N' columns are the total number of clips with any of these species
@@ -196,10 +197,10 @@ library(ggplot2)
   head(ac21agg[,c('SITE_STN','STOC_4N_N','STOC_ANY_N','STVA_8N_N','STVA_ANY_N')])
       
   #save
-    write.csv(ac21agg, 'output/04_ac_STOC_2021_aggregated.csv')
+    # write.csv(ac21agg, 'output/04_ac_STOC_2021_aggregated.csv')
     
     
-## integrate with Julie's outputs ####
+## integrate stn-level data with Julie's outputs ####
     
   # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv')
   
@@ -229,31 +230,52 @@ library(ggplot2)
                                  'FEMALE_N','MALE_N','UNK_N','JUV_N','STVA_all','INSP','WHIS_bo','BEG__bo')]
   head(ac21merge_trim)
   
-  #add distance from center for each station
-  ac21merge_trim$dist_m <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_trim$SITESTN), as.numeric(1000), NA)
-  ac21merge_trim$dist_m <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_trim$SITESTN), as.numeric(1732), ac21merge_trim$dist_m)
-  ac21merge_trim$dist_m <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_trim$SITESTN), as.numeric(2000), ac21merge_trim$dist_m)
-  ac21merge_trim$dist_m <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_trim$SITESTN), as.numeric(2646), ac21merge_trim$dist_m)
-  ac21merge_trim$dist_m <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_trim$SITESTN), as.numeric(3000), ac21merge_trim$dist_m)
-  ac21merge_trim$dist_m <- ifelse(grepl('19', ac21merge_trim$SITESTN), as.numeric(0), ac21merge_trim$dist_m)
-
-  table(ac21merge_trim$dist_m, useNA = 'always')
-
-  plot(ac21merge_trim$STOC_ANY_N ~ ac21merge_trim$dist_m) #any STOC
-  plot(ac21merge_trim$STOC_4N_N ~ ac21merge_trim$dist_m)  #all STOC
-  
-  plot(ac21merge_trim$STVA_all ~ ac21merge_trim$dist_m)   #any STVA
-  
   #add repro status of each site
   ac21merge_trim$reproState <- ifelse(grepl('DC', ac21merge_trim$SITESTN), 'fledged',
                                       ifelse(grepl('MC', ac21merge_trim$SITESTN), 'nest',
                                              ifelse(grepl('UG', ac21merge_trim$SITESTN), 'fledged', 'pair')))
   
+  
+## add distances as measured in GIS to stn-level outputs ####
+  
+  #read in attribute tables from ArcGIS ('distance' field is the distance in m from center for each point)
+  dist_dc <- fread('COA_AC_Work/distances/drift_creek_2021_distances.csv', 
+                   select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_dc$site <- 'DC'
+  dist_mc <- fread('COA_AC_Work/distances/miller_creek_2021_distances.csv',
+                   select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_mc$site <- 'MC'
+  dist_ug <- fread('COA_AC_Work/distances/upper_greenleaf_2021_distances.csv',
+                   select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_ug$site <- 'UG'
+  dist_wc <- fread('COA_AC_Work/distances/waite_creek_2021_distances.csv',
+                   select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_wc$site <- 'WC'
+  
+  #combine and add column for matching
+  distances <- rbind(dist_dc, dist_mc); distances <- rbind(distances, dist_ug); distances <- rbind(distances, dist_wc)
+  distances$SITESTN <- paste(distances$site, formatC(distances$STATION, width = '2', format = 'd', flag = '0'), sep = '_')
+  
+  #merge with rest of the data
+  ac21merge_trim_dist <- merge(ac21merge_trim, distances[,c('SITESTN','Distance','XNAD83FP','YNAD83FP')], 
+                               by = c('SITESTN'), all = TRUE)
+  
+  #add intended distance from center for each station (**but we probably want the actual distances above for models**)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_trim_dist$SITESTN), as.numeric(1000), NA)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_trim_dist$SITESTN), as.numeric(1732), ac21merge_trim_dist$dist_intended)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_trim_dist$SITESTN), as.numeric(2000), ac21merge_trim_dist$dist_intended)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_trim_dist$SITESTN), as.numeric(2646), ac21merge_trim_dist$dist_intended)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_trim_dist$SITESTN), as.numeric(3000), ac21merge_trim_dist$dist_intended)
+  ac21merge_trim_dist$dist_intended <- ifelse(grepl('19', ac21merge_trim_dist$SITESTN), as.numeric(0), ac21merge_trim_dist$dist_intended)
+
+  table(ac21merge_trim_dist$dist_intended, useNA = 'always')
+  
+  plot(ac21merge_trim_dist$STOC_ANY_N ~ ac21merge_trim_dist$Distance) #any STOC
+  plot(ac21merge_trim_dist$STOC_4N_N ~ ac21merge_trim_dist$Distance)  #all STOC
+  
+  plot(ac21merge_trim_dist$STVA_all ~ ac21merge_trim_dist$Distance)   #any STVA
+  
+  
   #save
-    write.csv(ac21merge_trim, 'output/05_ac_2021_merged.csv')
+    # write.csv(ac21merge_trim, 'output/05_ac_2021_merged.csv')  #output 1/25/23 with actual distances
 
     
 
-    
   
   

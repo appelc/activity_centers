@@ -1,0 +1,62 @@
+---
+title: "Activity center models - days with detections"
+author: "Cara"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-packages, include=FALSE}
+library(data.table)
+library(broom)
+library(tidyverse)
+library(effects)
+library(ggplot2)
+library(plyr)
+library(kableExtra)
+```
+
+--------------------------------------------------------------------------------
+
+### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2021
+
+
+--------------------------------------------------------------------------------
+
+#### Load data: 
+#####   145 rows = 145 ARU stations from 4 different study areas
+
+```{r echo=FALSE}
+  acData <- fread('../output/05_ac_2021_merged.csv')
+
+## format for a binomial model (each row is an ARU site)
+  daysSTOC <- acData[,c('STOC_ANY_N','nDaysSampled','nDays','dist_m','reproState')]
+    
+## convert to binary (and convert NAs to 0s)
+  anySTOC$STOC <- ifelse(is.na(anySTOC$STOC_ANY_N) | anySTOC$STOC_ANY_N == 0, 0, 1)
+    anySTOC$reproState <- factor(anySTOC$reproState, levels = c('pair','nest','fledged'))
+    anySTOC[,-1][order(anySTOC$dist_m),]
+    
+```
+
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

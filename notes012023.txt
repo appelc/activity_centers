@@ -1,0 +1,74 @@
+how many sites/rows (out of 145) have detections of STOC
+- at each distance (6)
+- at each repro state (3)
+= 18 groups
+
+	RAW:
+		dist	repro	STOC
+		0	pair	1	(1 here means this site had STOC; doesn't matter how many)
+		0	nest	1
+		0	fledg	1
+		0	fledg	1
+		1000	pair	0
+		1000	pair	1
+		...	...
+		3000	fledg	1
+
+		(nrow = 145) 'anySTOC'	[sum STOC = 45 (this many sites had STOC)]
+
+	CAST:
+		dist	repro	No	Yes
+		0	pair	0	1     (0 here means no sites with 0 dist and pair had no STOC; 1 site in that group had STOC)
+		0	nest	0	1     
+		0	fledg	0	2
+		1000	pair	3	3	(3 sites with 1000 and pair had no STOC; 3 had STOC) **use table(anySTOC$dist_m, anySTOC$reproState) to see how many there are in each group
+		...	...	
+
+		(nrow = 18) 'stocBern'
+
+
+how many sites/rows (out of 145) have detections of STOC
+- at each distance (6)
+- at each repro state (3)
+- of each sex (2)
+= 36 groups
+
+	RAW1:
+		dist	repro	F	M
+		0	pair	1	1    (1 here means this site had females and it had males; doesn't matter how many)	
+		0	nest	1	1
+		0	fledg	1	1
+		0	fledg	1	1
+		1000	pair	0	0
+		1000	pair	0	1
+		...	...	
+		3000	fledg	0	1
+
+		(nrow = 145) 'sexSTOC' [nrow where F > 0 or M > 0 = 42 (this many sites had confirmed F or M)] **the other 3 must have had UNK or JUV only**
+
+	RAW2:
+		dist	repro	sex	STOC	
+		0	pair	F	1	
+		0	pair	M	1
+		0	nest	F	1	
+		0	nest	M	1	
+		0	fledg	F	2	(2 here means this many 
+		0	fledg	M	2	
+		1000	pair	F	...		
+					
+		(nrow = 290) 'sexSTOClong'
+
+	CAST:
+		dist	repro	sex	No	Yes
+		0	pair	F	
+
+
+	dist	repro	sex	count
+	0	pair	f
+	0	pair	m
+	0	nest	f
+	0	nest	m
+	0	fledg	f
+	0	flegd	m
+	...	...	...
+	3000	fledg	m
