@@ -7,7 +7,7 @@ library(ggplot2)
   ac21 <- fread('COA_AC_Work/ac_STOC_2021.csv')
   head(ac21)  
   
-  
+#  
 ## explore some of the fields ####
   
   #SPECIES
@@ -205,29 +205,32 @@ library(ggplot2)
   # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv')
   
   #read in cleaned file from Julie  
-  ac21jj <- fread('COA_AC_Work/data_output/COAAC_21_strixSeason_wide.csv')
+  ac21jj <- fread('COA_AC_Work/from_Julie/data_output/COAAC_2021_SampleSummary_fromNoise.csv')
   head(ac21jj)    
-    #this dataframe has all the stations (not just ones with STOC detected) so we can get STVA totals, days surveyed, etc.
-  
+
   #reformat columns to merge
   ac21jj$SITESTN <- paste(substr(ac21jj$site, 5,6), sapply(strsplit(as.character(ac21jj$site), '\\-'),'[',2), sep = '_')
   unique(ac21jj$SITESTN)    
     
   ac21agg$SITESTN <- paste(toupper(substr(ac21agg$SITE_STN, 1, 2)),
                      substr(ac21agg$SITE_STN, 5, 6), sep = '_')
-    
+
+  #format dates
+  ac21jj$start <- as.POSIXct(strptime(ac21jj$min_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
+  ac21jj$stop <- as.POSIXct(strptime(ac21jj$max_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
+  ac21jj$duration <- difftime(ac21jj$stop, ac21jj$start) #nDays is unique days while duration is the difference
+  
   #merge
-  ac21merge <- merge(ac21agg, ac21jj, by = c('SITESTN'), all = TRUE)
+  ac21merge <- merge(ac21agg, ac21jj[,c('SITESTN','start','stop','duration')], by = c('SITESTN'), all = TRUE)
   head(ac21merge)    
   
   nrow(ac21agg)  
   nrow(ac21jj)
-  nrow(ac21merge) #good, should be 145 rows (to match ac21jj) ... 37 stations * 4 sites (minus 3 at WC)
+  nrow(ac21merge) #good, should be 145 rows (to match ac21jj): 37 stations * 4 sites (minus 3 at WC)
   
-  #keep STVA columns from Julie's; STOC columns from mine (bc it has Chris's final M/F determinations)
-  ac21merge_trim <- ac21merge[,c('SITESTN','minDate','maxDate','nDaysSampled','nDays',
-                                 'STOC_ANY_N','STOC_4N_N','STOC_IRREG_N','STOC_BARK_N','STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N',
-                                 'FEMALE_N','MALE_N','UNK_N','JUV_N','STVA_all','INSP','WHIS_bo','BEG__bo')]
+  #get rid of extra columns
+  ac21merge_trim <- ac21merge[,c('SITESTN','start','stop','duration','STOC_ANY_N','STOC_4N_N','STOC_IRREG_N','STOC_BARK_N',
+                                 'STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N','FEMALE_N','MALE_N','UNK_N','JUV_N')]
   head(ac21merge_trim)
   
   #add repro status of each site
@@ -236,7 +239,7 @@ library(ggplot2)
                                              ifelse(grepl('UG', ac21merge_trim$SITESTN), 'fledged', 'pair')))
   
   
-## add distances as measured in GIS to stn-level outputs ####
+## add distances as measured in GIS ####
   
   #read in attribute tables from ArcGIS ('distance' field is the distance in m from center for each point)
   dist_dc <- fread('COA_AC_Work/distances/drift_creek_2021_distances.csv', 
@@ -269,12 +272,10 @@ library(ggplot2)
   plot(ac21merge_trim_dist$STOC_ANY_N ~ ac21merge_trim_dist$Distance) #any STOC
   plot(ac21merge_trim_dist$STOC_4N_N ~ ac21merge_trim_dist$Distance)  #all STOC
   
-  plot(ac21merge_trim_dist$STVA_all ~ ac21merge_trim_dist$Distance)   #any STVA
-  
   
   #save
-    # write.csv(ac21merge_trim, 'output/05_ac_2021_merged.csv')  #output 1/25/23 with actual distances
-
+    write.csv(ac21merge_trim_dist, 'output/05_ac_2021_merged.csv')  #output 1/26/23 with actual distances
+    
     
 
   

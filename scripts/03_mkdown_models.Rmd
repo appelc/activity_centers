@@ -27,6 +27,7 @@ library(kableExtra)
 
 ### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2021
 
+### ***NEED TO FINISH THESE WITH QUASIBINOMIAL OR RANDOM EFFECT BC OVERDISPERSED***
 
 --------------------------------------------------------------------------------
 
@@ -34,16 +35,24 @@ library(kableExtra)
 #####   145 rows = 145 ARU stations from 4 different study areas
 
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
   acData <- fread('../output/05_ac_2021_merged.csv')
 
 ## format for a binomial model (each row is an ARU site)
-  anySTOC <- acData[,c('STOC_ANY_N','nDaysSampled','dist_m','reproState')]
+  anySTOC <- acData[,c('STOC_ANY_N','duration','Distance','dist_intended','reproState')]
+  fnSTOC  <- acData[,c('STOC_4N_N','duration','Distance','dist_intended','reproState')]
     
 ## convert to binary (and convert NAs to 0s)
-  anySTOC$STOC <- ifelse(is.na(anySTOC$STOC_ANY_N) | anySTOC$STOC_ANY_N == 0, 0, 1)
+  
+  #any STOC detections
+  anySTOC$stoc_any <- ifelse(is.na(anySTOC$STOC_ANY_N) | anySTOC$STOC_ANY_N == 0, 0, 1)
     anySTOC$reproState <- factor(anySTOC$reproState, levels = c('pair','nest','fledged'))
-    anySTOC[,-1][order(anySTOC$dist_m),]
+    anySTOC[,-1][order(anySTOC$dist_intended),]
+    
+  #4-note hoots only
+  fnSTOC$stoc_fournote <- ifelse(is.na(fnSTOC$STOC_4N_N) | fnSTOC$STOC_4N_N == 0, 0, 1)
+    fnSTOC$reproState <- factor(fnSTOC$reproState, levels = c('pair','nest','fledged'))    
+    fnSTOC[,-1][order(fnSTOC$dist_intended),]
     
 ```
 
@@ -51,16 +60,32 @@ library(kableExtra)
 #### Then format into groups: 
 #####   6 distances * 3 reproductive states = 18 groups
 
-```{r,echo=FALSE}
-## Re-format dataframe as Bernoulli (each row is a combo of groups)
-    stocBern <- dcast(anySTOC[,-c(1:2)], dist_m + reproState ~ STOC, 
-                    fun.aggregate = length, value.var = 'STOC')
-    colnames(stocBern)[c(3:4)] <- c('No','Yes')
-    stocBern$reproState <- factor(stocBern$reproState, levels = c('pair','nest','fledged'))  
-    # nrow(stocBern) #3 repro states * 6 distances = 18 groups     
-    stocBern
-    
+```{r, echo=FALSE}
+## Re-format dataframe as Bernoulli (each row is a combo of groups) *using intended distance*
+
+  #any STOC
+    anyStocBern <- dcast(anySTOC[,-c(1:2)], dist_intended + reproState ~ stoc_any, 
+                         fun.aggregate = length, value.var = 'stoc_any')
+    colnames(anyStocBern)[c(3:4)] <- c('No','Yes')
+    anyStocBern$reproState <- factor(anyStocBern$reproState, levels = c('pair','nest','fledged'))  
+      
+  #four-note hoots
+    fnStocBern <- dcast(fnSTOC[,-c(1:2)], dist_intended + reproState ~ stoc_fournote,
+                        fun.aggregate = length, value.var = 'stoc_fournote')
+    colnames(fnStocBern)[c(3:4)] <- c('No','Yes')
+    fnStocBern$reproState <- factor(fnStocBern$reproState, levels = c('pair','nest','fledged'))  
+      
 ```
+
+```{r}
+## any spotted owl detections
+  anyStocBern
+
+## four-note hoot detections only
+  fnStocBern
+
+```
+
 
 
 ### Data summaries by reproductive state and by distance
@@ -70,30 +95,48 @@ library(kableExtra)
   #   count(reproState, STOC, sort = TRUE)
   
   anySTOC %>%
-    mutate(STOC = as_factor(STOC)) %>%
-    dplyr::count(reproState, STOC) %>%
-    ggplot(aes(x = reproState, y = n, fill = STOC)) +
+    mutate(any_stoc = as_factor(stoc_any)) %>%
+    dplyr::count(reproState, stoc_any) %>%
+    ggplot(aes(x = reproState, y = n, fill = stoc_any)) +
     geom_col() +
-    ylab('number of sites (out of 145)')
+    ylab('number of sites (out of 145)') +
+    ylim(0,80)
+
+  fnSTOC %>%
+    mutate(fnSTOC = as_factor(stoc_fournote)) %>%
+    dplyr::count(reproState, stoc_fournote) %>%
+    ggplot(aes(x = reproState, y = n, fill = stoc_fournote)) +
+    geom_col() +
+    ylab('number of sites (out of 145)') +
+    ylim(0,80)
   
   # anySTOC %>%
   #   count(dist_m, STOC, sort = TRUE)
   
   anySTOC %>%
-    mutate(STOC = as_factor(STOC)) %>%
-    dplyr::count(dist_m, STOC) %>%
-    ggplot(aes(x = dist_m, y = n, fill = STOC)) +
+    mutate(STOC = as_factor(stoc_any)) %>%
+    dplyr::count(dist_intended, stoc_any) %>%
+    ggplot(aes(x = dist_intended, y = n, fill = stoc_any)) +
+    geom_col() +
+    ylab('number of sites (out of 145)')
+  
+  fnSTOC %>%
+    mutate(STOC = as_factor(stoc_fournote)) %>%
+    dplyr::count(dist_intended, stoc_fournote) %>%
+    ggplot(aes(x = dist_intended, y = n, fill = stoc_fournote)) +
     geom_col() +
     ylab('number of sites (out of 145)')
   
   # anySTOC %>%
-  #   mutate(STOC = as_factor(STOC)) %>%
-  #   dplyr::count(nDaysSampled, STOC) %>%
-  #   ggplot(aes(x = nDaysSampled, y = n, fill = STOC)) +
-  #   geom_col()
+  #   mutate(STOC = as_factor(stoc_any)) %>%
+  #   dplyr::count(duration, stoc_any) %>%
+  #   ggplot(aes(x = duration, y = n, fill = stoc_any)) +
+  #   geom_col() +
+  #   ylab('number of sites (out of 145)')
   
 ```
 
+### --------------------------------------------------------------------------------
 ###  
 ### -- Models with any spotted owl detection as response variable
 ###  
@@ -101,12 +144,17 @@ library(kableExtra)
 
 ```{r}
 
-  repro.glm <- glm(cbind(Yes, No) ~ reproState, data = stocBern, family = binomial)
+  any.repro.glm <- glm(cbind(Yes, No) ~ reproState, data = anyStocBern, family = binomial)
 
-    tidy(repro.glm)
+    summary(any.repro.glm) #overdispersed (residual deviance >> df)
+    
+  #use quasibinomial instead  
+  any.repro.glm.quasi <- glm(cbind(Yes, No) ~ reproState, data = anyStocBern, family = quasibinomial)  
+  
+    summary(any.repro.glm.quasi)
 
   #back-transformed coefficients (probabilities of detecting a spotted owl)
-  allEffects(repro.glm)  
+  allEffects(any.repro.glm.quasi)  
 
 ```
 
@@ -114,12 +162,12 @@ library(kableExtra)
 
 ```{r}
 
-  stocBern2 <- stocBern
-  stocBern2$reproState <- factor(stocBern2$reproState, levels = c('fledged','nest','pair'))  
+  anyStocBern2 <- anyStocBern
+  anyStocBern2$reproState <- factor(anyStocBern2$reproState, levels = c('fledged','nest','pair'))  
 
-  repro.glm.2 <- glm(cbind(Yes, No) ~ reproState, data = stocBern2, family = binomial)
+  any.repro.glm.quasi2 <- glm(cbind(Yes, No) ~ reproState, data = anyStocBern2, family = quasibinomial)
   
-    tidy(repro.glm.2)
+    summary(any.repro.glm.quasi2)
     
 ```
 
@@ -129,16 +177,16 @@ library(kableExtra)
 ## plot effects above
 
   #save effects as dataframe
-  df.repro.glm <- allEffects(repro.glm)
-  df.repro.glm <- data.frame(df.repro.glm$reproState)
-  df.repro.glm$reproState <- factor(df.repro.glm$reproState, levels = c('pair','nest','fledged'))
+  df.any.repro.glm <- allEffects(any.repro.glm.quasi)
+  df.any.repro.glm <- data.frame(df.any.repro.glm$reproState)
+  df.any.repro.glm$reproState <- factor(df.any.repro.glm$reproState, levels = c('pair','nest','fledged'))
   
   #and plot
-  plot.repro.glm <- ggplot(df.repro.glm, aes(x = reproState, y = fit)) + 
+  plot.any.repro.glm <- ggplot(df.any.repro.glm, aes(x = reproState, y = fit)) + 
     geom_point(size = 3) +
     geom_errorbar(aes(ymin = lower, ymax = upper)) +
     ylim(c(0,1)) +
-    ylab('probability of spotted owl detection') +
+    ylab('probability of spotted owl detection (any)') +
     # ggtitle('Spotted owl detections by reproductive state') +
     theme(panel.background = element_rect(fill = 'transparent'),
           axis.line = element_line(),
@@ -151,9 +199,9 @@ library(kableExtra)
           legend.title = element_blank(),
           legend.position = 'none',
           legend.background = element_rect(fill='transparent'))
-  plot.repro.glm
+  plot.any.repro.glm
 
-# plot(allEffects(repro.glm))  #for comparison
+# plot(allEffects(any.repro.glm))  #for comparison
 
 ```
 
@@ -163,12 +211,16 @@ library(kableExtra)
 
 ```{r}
 
-  dist.glm <- glm(cbind(Yes, No) ~ dist_m, data = stocBern, family = binomial)
+  any.dist.glm <- glm(cbind(Yes, No) ~ dist_intended, data = anyStocBern, family = binomial)
 
-    tidy(dist.glm)
+    summary(any.dist.glm)  #overdispersed, use quasibinomial
+    
+  any.dist.glm.quasi <- glm(cbind(Yes, No) ~ dist_intended, data = anyStocBern, family = quasibinomial)
+  
+    summary(any.dist.glm.quasi)
     
   #back-transformed coefficients (probabilities of detecting a spotted owl)
-  allEffects(dist.glm) 
+  allEffects(any.dist.glm.quasi) 
     
 ```
 
@@ -177,13 +229,13 @@ library(kableExtra)
 ## plot effects above
 
   #save effects as dataframe
-  df.dist.glm <- allEffects(dist.glm)
-  df.dist.glm <- data.frame(df.dist.glm$dist_m)
+  df.any.dist.glm <- allEffects(any.dist.glm.quasi)
+  df.any.dist.glm <- data.frame(df.any.dist.glm$dist_intended)
 
   #and plot
-  plot.dist.glm <- ggplot(df.dist.glm, aes(x = dist_m/1000, y = fit)) + 
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  plot.any.dist.glm <- ggplot(df.any.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
+    # geom_point(size = 3) +
+    # geom_errorbar(aes(ymin = lower, ymax = upper)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
     # geom_smooth() +
   # ggplot(stocBern, aes(x = dist_m, y = Yes)) +
@@ -192,7 +244,7 @@ library(kableExtra)
   #             method.args = list(family = binomial)) +
     geom_line() +
     ylim(c(0,1)) +
-    ylab('probability of spotted owl detection') +
+    ylab('probability of spotted owl detection (any)') +
     xlab('Distance from center (km)') +
     # ggtitle('Spotted owl detections by reproductive state') +
     theme(panel.background = element_rect(fill = 'transparent'),
@@ -206,9 +258,9 @@ library(kableExtra)
           legend.title = element_blank(),
           legend.position = 'none',
           legend.background = element_rect(fill='transparent'))
-  plot.dist.glm
+  plot.any.dist.glm
 
-# plot(allEffects(dist.glm))  #for comparison
+# plot(allEffects(any.dist.glm))  #for comparison
 
 ```
 
@@ -218,12 +270,17 @@ library(kableExtra)
 
 ```{r}
 
-  repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_m, data = stocBern, family = binomial)
+  any.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = anyStocBern, family = binomial)
 
-    tidy(repro.dist.glm)
-    
+    sumary(any.repro.dist.glm) #overdispersed, use quasibinomial
+
+  any.repro.dist.glm.quasi <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = anyStocBern, 
+                                  family = quasibinomial)
+  
+    summary(any.repro.dist.glm.quasi)
+  
   #effects -- back-transformed coefficients (probabilities of detection)
-  allEffects(repro.dist.glm)  
+  allEffects(any.repro.dist.glm.quasi)  
   
 ```
 
@@ -232,22 +289,22 @@ library(kableExtra)
 ## plot effects above
 
   #save effects as dataframe
-  df.repro.dist.glm <- allEffects(repro.dist.glm)
-  df.repro.dist.glm <- data.frame(df.repro.dist.glm$`reproState:dist_m`)
+  df.any.repro.dist.glm <- allEffects(any.repro.dist.glm.quasi)
+  df.any.repro.dist.glm <- data.frame(df.any.repro.dist.glm$`reproState:dist_intended`)
   
-  df.repro.dist.glm$reproState <- factor(df.repro.dist.glm$reproState, 
-                                         levels = c('pair','nest','fledged'))
+  df.any.repro.dist.glm$reproState <- factor(df.any.repro.dist.glm$reproState, 
+                                             levels = c('pair','nest','fledged'))
 
   #and plot
-  plot.repro.dist.glm <- ggplot(df.repro.dist.glm, aes(x = dist_m/1000, y = fit)) + 
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+  plot.any.repro.dist.glm <- ggplot(df.any.repro.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
+    # geom_point(size = 3) +
+    # geom_errorbar(aes(ymin = lower, ymax = upper)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
     geom_line() +
     # geom_smooth() +
     facet_grid(~reproState) +
     ylim(c(0,1)) +
-    ylab('probability of spotted owl detection') +
+    ylab('probability of spotted owl detection (any)') +
     xlab('Distance from center (km)') +
     # ggtitle('Spotted owl detections by reproductive state') +
     theme(panel.background = element_rect(fill = 'transparent'),
@@ -261,22 +318,24 @@ library(kableExtra)
           legend.title = element_blank(),
           legend.position = 'none',
           legend.background = element_rect(fill='transparent'))
-  plot.repro.dist.glm
+  plot.any.repro.dist.glm
+  
+  # plot(allEffects(any.repro.dist.glm)) #for comparison
   
 ```
 
 
 ###  
-#### -- compare models using AIC
+#### -- compare models using AIC -- can't do AIC with quasibinomial
 
 ```{r, echo=FALSE}
 
 ## Compare models
   mods.aic <- data.frame('model' = c('null','reproState','distance','reproState*dist'),
-                         'AIC' = c(AIC(glm(cbind(Yes, No) ~ 1, data = stocBern, family = binomial)),
-                                   AIC(repro.glm), 
-                                   AIC(dist.glm),
-                                   AIC(repro.dist.glm)))
+                         'AIC' = c(AIC(glm(cbind(Yes, No) ~ 1, data = anyStocBern, family = binomial)),
+                                   AIC(any.repro.glm), 
+                                   AIC(any.dist.glm),
+                                   AIC(any.repro.dist.glm)))
   mods.aic <- mods.aic[order(mods.aic$AIC),]  
   mods.aic$delta_AIC <- mods.aic$AIC - mods.aic$AIC[1]
   
@@ -288,14 +347,213 @@ library(kableExtra)
 
 ```
 
---------------------------------------------------------------------------------
+### --------------------------------------------------------------------------------
+
+###  
+### -- Models with spotted owl 4-note hoot detections as response variable
+###  
+#### 1. effect of reproductive state
+
+```{r}
+
+  fn.repro.glm <- glm(cbind(Yes, No) ~ reproState, data = fnStocBern, family = binomial)
+
+    tidy(fn.repro.glm)
+
+  #back-transformed coefficients (probabilities of detecting a spotted owl)
+  allEffects(fn.repro.glm)  
+
+```
+
+#### reorder levels so intercept is 'fledged'
+
+```{r}
+
+  fnStocBern2 <- fnStocBern
+  fnStocBern2$reproState <- factor(fnStocBern2$reproState, levels = c('fledged','nest','pair'))  
+
+  fn.repro.glm.2 <- glm(cbind(Yes, No) ~ reproState, data = fnStocBern2, family = binomial)
+  
+    tidy(fn.repro.glm.2)
+    
+```
+
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+  #save effects as dataframe
+  df.fn.repro.glm <- allEffects(fn.repro.glm)
+  df.fn.repro.glm <- data.frame(df.fn.repro.glm$reproState)
+  df.fn.repro.glm$reproState <- factor(df.fn.repro.glm$reproState, levels = c('pair','nest','fledged'))
+  
+  #and plot
+  plot.fn.repro.glm <- ggplot(df.fn.repro.glm, aes(x = reproState, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    ylim(c(0,1)) +
+    ylab('probability of spotted owl detection (4-note)') +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.fn.repro.glm
+
+# plot(allEffects(fn.repro.glm))  #for comparison
+
+```
+
+
+###  
+#### 2. effect of distance from center (in meters)
+
+```{r}
+
+  fn.dist.glm <- glm(cbind(Yes, No) ~ dist_intended, data = fnStocBern, family = binomial)
+
+    tidy(fn.dist.glm)
+    
+  #back-transformed coefficients (probabilities of detecting a spotted owl)
+  allEffects(fn.dist.glm) 
+    
+```
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+  #save effects as dataframe
+  df.fn.dist.glm <- allEffects(fn.dist.glm)
+  df.fn.dist.glm <- data.frame(df.fn.dist.glm$dist_intended)
+
+  #and plot
+  plot.fn.dist.glm <- ggplot(df.fn.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+    # geom_smooth() +
+  # ggplot(stocBern, aes(x = dist_m, y = Yes)) +
+  # geom_smooth(data = stocBern, formula = cbind(Yes, No) ~ dist_m,
+  #             method = "glm", colour = "black", linetype = 2, fill = "gray80", alpha = 0.2,
+  #             method.args = list(family = binomial)) +
+    geom_line() +
+    ylim(c(0,1)) +
+    ylab('probability of spotted owl detection (4-note)') +
+    xlab('Distance from center (km)') +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          # axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.fn.dist.glm
+
+# plot(allEffects(fn.dist.glm))  #for comparison
+
+```
+
+
+###  
+#### 3. interaction of reproState * distance
+
+```{r}
+
+  fn.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = fnStocBern, family = binomial)
+
+    tidy(fn.repro.dist.glm)
+    
+  #effects -- back-transformed coefficients (probabilities of detection)
+  allEffects(fn.repro.dist.glm)  
+  
+```
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+  #save effects as dataframe
+  df.fn.repro.dist.glm <- allEffects(fn.repro.dist.glm)
+  df.fn.repro.dist.glm <- data.frame(df.fn.repro.dist.glm$`reproState:dist_intended`)
+  
+  df.fn.repro.dist.glm$reproState <- factor(df.fn.repro.dist.glm$reproState, 
+                                             levels = c('pair','nest','fledged'))
+
+  #and plot
+  plot.fn.repro.dist.glm <- ggplot(df.fn.repro.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+    geom_line() +
+    # geom_smooth() +
+    facet_grid(~reproState) +
+    ylim(c(0,1)) +
+    ylab('probability of spotted owl detection (4-note)') +
+    xlab('Distance from center (km)') +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          # axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.fn.repro.dist.glm
+  
+  # plot(allEffects(fn.repro.dist.glm)) #for comparison
+  
+```
+
+
+###  
+#### -- compare models using AIC
+
+```{r, echo=FALSE}
+
+## Compare models
+  mods.aic <- data.frame('model' = c('null','reproState','distance','reproState*dist'),
+                         'AIC' = c(AIC(glm(cbind(Yes, No) ~ 1, data = fnStocBern, family = binomial)),
+                                   AIC(fn.repro.glm), 
+                                   AIC(fn.dist.glm),
+                                   AIC(fn.repro.dist.glm)))
+  mods.aic <- mods.aic[order(mods.aic$AIC),]  
+  mods.aic$delta_AIC <- mods.aic$AIC - mods.aic$AIC[1]
+  
+                         
+  mods.aic %>%
+    kbl(digits = 3) %>%
+    kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+  
+
+```
+
+
+### --------------------------------------------------------------------------------
 
 ### -- Models with female/male spotted owl detection as response variable
 ###  
 ```{r, echo=FALSE}
 
 ## create new dataframes
-  sexSTOC <- acData[,c('FEMALE_N','MALE_N','nDaysSampled','dist_m','reproState')]
+  sexSTOC <- acData[,c('FEMALE_N','MALE_N','duration','Distance','dist_intended','reproState')]
     
 ## convert to binary (and convert NAs to 0s)
   sexSTOC$female <- ifelse(is.na(sexSTOC$FEMALE_N) | sexSTOC$FEMALE_N == 0, 0, 1)  
@@ -304,12 +562,12 @@ library(kableExtra)
   # sexSTOC[,-c(1:2)][order(sexSTOC$dist_m),]
     
 ## re-format dataframe as Bernoulli (each row is a combo of groups)
-    femaleSTOC <- dcast(sexSTOC[,c(4:6)], dist_m + reproState ~ female, 
+    femaleSTOC <- dcast(sexSTOC[,c(5:7)], dist_intended + reproState ~ female, 
                         fun.aggregate = length, value.var = 'female')
     colnames(femaleSTOC)[c(3:4)] <- c('No','Yes')
     femaleSTOC$reproState <- factor(femaleSTOC$reproState, levels = c('pair','nest','fledged')) 
 
-    maleSTOC <- dcast(sexSTOC[,c(4:5,7)], dist_m + reproState ~ male, 
+    maleSTOC <- dcast(sexSTOC[,c(5:6,8)], dist_intended + reproState ~ male, 
                       fun.aggregate = length, value.var = 'male')
     colnames(maleSTOC)[c(3:4)] <- c('No','Yes')
     maleSTOC$reproState <- factor(maleSTOC$reproState, levels = c('pair','nest','fledged')) #order levels
@@ -333,7 +591,7 @@ library(kableExtra)
   #females
   fem.repro.glm <- glm(cbind(Yes, No) ~ reproState, data = femaleSTOC, family = binomial)
 
-    tidy(fem.repro.glm)
+    summary(fem.repro.glm) #overdispersed, use quasibinomial insead
   
   #males
   male.repro.glm <- glm(cbind(Yes, No) ~ reproState, data = maleSTOC, family = binomial)  
@@ -392,12 +650,12 @@ library(kableExtra)
 ```{r}
 
   #females
-  fem.dist.glm <- glm(cbind(Yes, No) ~ dist_m, data = femaleSTOC, family = binomial)
+  fem.dist.glm <- glm(cbind(Yes, No) ~ dist_intended, data = femaleSTOC, family = binomial)
 
     tidy(fem.dist.glm)
     
   #males
-  male.dist.glm <- glm(cbind(Yes, No) ~ dist_m, data = maleSTOC, family = binomial)  
+  male.dist.glm <- glm(cbind(Yes, No) ~ dist_intended, data = maleSTOC, family = binomial)  
   
     tidy(male.dist.glm)
     
@@ -412,15 +670,15 @@ library(kableExtra)
 
 #save effects as dataframe
   df.f.dist.glm <- allEffects(fem.dist.glm)
-  df.f.dist.glm <- data.frame(df.f.dist.glm$dist_m); df.f.dist.glm$sex <- 'female'
+  df.f.dist.glm <- data.frame(df.f.dist.glm$dist_intended); df.f.dist.glm$sex <- 'female'
 
   df.m.dist.glm <- allEffects(male.dist.glm)
-  df.m.dist.glm <- data.frame(df.m.dist.glm$dist_m); df.m.dist.glm$sex <- 'male'
+  df.m.dist.glm <- data.frame(df.m.dist.glm$dist_intended); df.m.dist.glm$sex <- 'male'
 
   fm.dist.glm <- rbind(df.f.dist.glm, df.m.dist.glm)
 
 #and plot
-  plot.fm.dist.glm <- ggplot(fm.dist.glm, aes(x = dist_m/1000, y = fit)) + 
+  plot.fm.dist.glm <- ggplot(fm.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
     geom_point(size = 3) +
     geom_errorbar(aes(ymin = lower, ymax = upper)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
@@ -452,12 +710,12 @@ library(kableExtra)
 ```{r}
 
   #females
-  fem.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_m, data = femaleSTOC, family = binomial)
+  fem.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = femaleSTOC, family = binomial)
 
     tidy(fem.repro.dist.glm)
 
   #males  
-  male.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_m, data = maleSTOC, family = binomial)  
+  male.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = maleSTOC, family = binomial)  
   
     tidy(male.repro.dist.glm)
     
@@ -473,11 +731,11 @@ library(kableExtra)
 
 #save effects as dataframe
   df.f.repro.dist.glm <- allEffects(fem.repro.dist.glm)
-  df.f.repro.dist.glm <- data.frame(df.f.repro.dist.glm$`reproState:dist_m`)
+  df.f.repro.dist.glm <- data.frame(df.f.repro.dist.glm$`reproState:dist_intended`)
     df.f.repro.dist.glm$sex <- 'female'
 
   df.m.repro.dist.glm <- allEffects(male.repro.dist.glm)
-  df.m.repro.dist.glm <- data.frame(df.m.repro.dist.glm$`reproState:dist_m`)
+  df.m.repro.dist.glm <- data.frame(df.m.repro.dist.glm$`reproState:dist_intended`)
     df.m.repro.dist.glm$sex <- 'male'
 
   fm.repro.dist.glm <- rbind(df.f.repro.dist.glm, df.m.repro.dist.glm)
@@ -485,7 +743,7 @@ library(kableExtra)
                                          levels = c('pair','nest','fledged'))
 
 #and plot
-  plot.fm.repro.dist.glm <- ggplot(fm.repro.dist.glm, aes(x = dist_m/1000, y = fit)) + 
+  plot.fm.repro.dist.glm <- ggplot(fm.repro.dist.glm, aes(x = dist_intended/1000, y = fit)) + 
     geom_point(size = 3) +
     geom_errorbar(aes(ymin = lower, ymax = upper)) +
     geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
@@ -556,3 +814,187 @@ library(kableExtra)
 
 ```
 
+
+### --------------------------------------------------------------------------------
+###  
+### -- Binomial models with any spotted owl detection as response variable (continuous)
+###  
+#### 1. effect of reproductive state
+
+```{r}
+
+  bin.any.repro.glm <- glm(stoc_any ~ reproState, data = anySTOC, family = binomial)
+
+    tidy(bin.any.repro.glm)
+
+  #back-transformed coefficients (probabilities of detecting a spotted owl)
+  allEffects(bin.any.repro.glm)  
+
+```
+
+#### reorder levels so intercept is 'fledged'
+
+```{r}
+
+  anySTOC2 <- anySTOC
+  anySTOC2$reproState <- factor(anySTOC2$reproState, levels = c('fledged','nest','pair'))  
+
+  bin.any.repro.glm.2 <- glm(stoc_any ~ reproState, data = anySTOC, family = binomial)
+  
+    tidy(bin.any.repro.glm.2)
+    
+```
+
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+  #save effects as dataframe
+  df.bin.any.repro.glm <- allEffects(bin.any.repro.glm)
+  df.bin.any.repro.glm <- data.frame(df.bin.any.repro.glm$reproState)
+  df.bin.any.repro.glm$reproState <- factor(df.bin.any.repro.glm$reproState, levels = c('pair','nest','fledged'))
+  
+  #and plot
+  plot.bin.any.repro.glm <- ggplot(df.bin.any.repro.glm, aes(x = reproState, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    ylim(c(0,1)) +
+    ylab('probability of spotted owl detection (any)') +
+    theme_bw() +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(
+      # panel.background = element_rect(fill = 'transparent'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.bin.any.repro.glm
+
+# plot(allEffects(bin.any.repro.glm))  #for comparison
+
+```
+
+
+###  
+#### 2. effect of distance from center (in meters)
+
+```{r}
+
+  bin.any.dist.glm <- glm(stoc_any ~ Distance, data = anySTOC, family = binomial)
+
+    tidy(bin.any.dist.glm)
+    
+  #back-transformed coefficients (probabilities of detecting a spotted owl)
+  allEffects(bin.any.dist.glm) 
+    
+```
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+### try another way
+  ggplot(anySTOC, aes(Distance, stoc_any)) + 
+  geom_smooth(method = "glm", formula = y ~ x, colour = "black",
+              linetype = 2, fill = "gray80", alpha = 0.2,
+              method.args = list(family = binomial)) +
+  geom_rug(sides = "b") +
+  theme_bw() +
+  ylab("Probability") + xlab("Distance from center (m)") +
+       # title = "Logistic regression model") +
+  theme(text = element_text(size = 16),
+        plot.margin = margin(50, 50, 50, 50),
+        axis.title.x = element_text(vjust = -8),
+        axis.title.y = element_text(vjust = 10),
+        plot.title = element_text(vjust = 8))
+
+###
+
+ # plot(allEffects(bin.any.dist.glm))  #for comparison
+
+```
+
+
+###  
+#### 3. interaction of reproState * distance
+
+```{r}
+
+  bin.any.repro.dist.glm <- glm(stoc_any ~ reproState * Distance, data = anySTOC, family = binomial)
+
+    tidy(bin.any.repro.dist.glm)
+    
+  #effects -- back-transformed coefficients (probabilities of detection)
+  allEffects(bin.any.repro.dist.glm)  
+  
+```
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+  #save effects as dataframe
+  df.bin.any.repro.dist.glm <- allEffects(bin.any.repro.dist.glm)
+  df.bin.any.repro.dist.glm <- data.frame(df.bin.any.repro.dist.glm$`reproState:Distance`)
+  
+  df.bin.any.repro.dist.glm$reproState <- factor(df.bin.any.repro.dist.glm$reproState, 
+                                                 levels = c('pair','nest','fledged'))
+
+  #and plot
+  plot.bin.any.repro.dist.glm <- ggplot(df.bin.any.repro.dist.glm, aes(x = Distance/1000, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+    geom_line() +
+    # geom_smooth() +
+    facet_grid(~reproState) +
+    ylim(c(0,1)) +
+    ylab('probability of spotted owl detection (any)') +
+    xlab('Distance from center (km)') +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          # axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.bin.any.repro.dist.glm
+  
+  # plot(allEffects(any.repro.dist.glm)) #for comparison
+  
+```
+
+
+###  
+#### -- compare models using AIC
+
+```{r, echo=FALSE}
+
+## Compare models
+  mods.aic <- data.frame('model' = c('null','reproState','distance','reproState*dist'),
+                         'AIC' = c(AIC(glm(stoc_any ~ 1, data = anySTOC, family = binomial)),
+                                   AIC(bin.any.repro.glm), 
+                                   AIC(bin.any.dist.glm),
+                                   AIC(bin.any.repro.dist.glm)))
+  mods.aic <- mods.aic[order(mods.aic$AIC),]  
+  mods.aic$delta_AIC <- mods.aic$AIC - mods.aic$AIC[1]
+  
+                         
+  mods.aic %>%
+    kbl(digits = 3) %>%
+    kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+  
+
+```

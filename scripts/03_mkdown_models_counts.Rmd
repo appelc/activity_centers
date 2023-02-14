@@ -1,0 +1,456 @@
+---
+title: "Activity center models - counts of detections"
+author: "Cara"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-packages, include=FALSE}
+library(data.table)
+library(broom)
+library(tidyverse)
+library(effects)
+library(ggplot2)
+library(plyr)
+library(kableExtra)
+library(MASS)
+```
+
+--------------------------------------------------------------------------------
+
+### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2021
+
+
+--------------------------------------------------------------------------------
+
+#### Load data: 
+#####   145 rows = 145 ARU stations from 4 different study areas
+
+```{r echo=FALSE}
+ 
+  #import station summary
+  acData <- fread('../output/05_ac_2021_merged.csv')
+  
+  #keep necessary columns
+  anySTOC <- acData[,c('STOC_ANY_N','duration','Distance','dist_intended','reproState')]
+  
+  #convert NAs to 0s and order levels
+  anySTOC$stoc_any_count <- ifelse(is.na(anySTOC$STOC_ANY_N), 0, anySTOC$STOC_ANY_N)
+  anySTOC$reproState <- factor(anySTOC$reproState, levels = c('pair','nest','fledged'))
+
+  #print
+  anySTOC[,c('Distance','reproState','stoc_any_count')][order(anySTOC$Distance)]
+  
+  #look at distribution of counts
+  summary(anySTOC$stoc_any_count)
+  hist(anySTOC$stoc_any_count, xlab = 'count')  
+    
+```
+
+--------------------------------------------------------------------------------
+
+### -- Models using the number of spotted owl detection as the response variable (negative binomial)
+###  
+#### 1. effect of reproductive state
+
+```{r}
+
+  any.nb.repro <- glm.nb(stoc_any_count ~ reproState, data = anySTOC)
+  
+    summary(any.nb.repro)
+    
+  #reorder levels
+  anySTOC2 <- anySTOC ; anySTOC2$reproState <- factor(anySTOC2$reproState, levels = c('fledged','nest','pair'))
+  any.nb.repro2 <- glm.nb(stoc_any_count ~ reproState, data = anySTOC2)
+  
+    summary(any.nb.repro2)
+
+  #back-transformed coefficients
+  allEffects(any.nb.repro)
+
+```
+
+
+```{r, echo=FALSE}
+
+## plot effects
+
+  #save effects as dataframe
+  df.any.nb.repro <- allEffects(any.nb.repro)
+  df.any.nb.repro <- data.frame(df.any.nb.repro$reproState)
+  df.any.nb.repro$reproState <- factor(df.any.nb.repro$reproState, levels = c('pair','nest','fledged'))
+  
+  #and plot
+  plot.any.nb.repro <- ggplot(df.any.nb.repro, aes(x = reproState, y = fit)) + 
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower, ymax = upper)) +
+    # ylim(c(0,0.5)) +
+    ylab('Count)') +
+    # ggtitle('Spotted owl detections by reproductive state') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          panel.grid = element_line(color = 'gray90'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.any.nb.repro
+
+# plot(allEffects(any.prop.repro))  #for comparison
+
+```
+
+###  
+###  
+#### 2. effect of distance from center
+
+```{r}
+
+  any.nb.dist <- glm.nb(stoc_any_count ~ Distance, data = anySTOC)
+  
+    summary(any.nb.dist)
+
+  #back-transformed coefficients
+  allEffects(any.nb.dist)
+  
+```
+
+```{r, echo=FALSE}
+
+## plot effects
+plot.any.nb.dist <- ggplot(anySTOC, aes(x = Distance/1000, y =stoc_any_count)) +
+      geom_point(color = 'gray60') +
+      geom_smooth(method = 'glm.nb', formula = y ~ x) +
+      geom_rug(sides = 'b', lwd = 1) +
+      xlab('Distance from center (km)') + ylab('STOC count') +
+      ggtitle('Negative binomial') +
+      theme(
+        panel.background = element_rect(fill = 'transparent'),
+        panel.grid = element_line(color = 'gray90'),
+        axis.line = element_line(),
+        axis.title = element_text(size = 18),
+        # axis.title.x = element_blank(),
+        strip.text = element_text(size = 16),
+        axis.text = element_text(size = 16),
+        plot.title = element_text(hjust = 0.5, size = 18),
+        legend.text = element_text(size = 16),
+        legend.title = element_blank(),
+        legend.position = 'none',
+        legend.background = element_rect(fill='transparent'))
+plot.any.nb.dist
+
+# plot(allEffects(any.nb.dist))
+
+###
+
+```
+
+
+###  
+#### 3. interaction of reproState * distance
+
+```{r warning=TRUE}
+
+  # any.nb.repro.dist <- glm.nb(stoc_any_count ~ reproState * Distance, data = anySTOC)
+  
+    # summary(any.nb.repro.dist)
+
+  #back-transformed coefficients
+  # allEffects(any.nb.repro.dist)
+  
+```
+
+###  
+#### -- compare models using AIC
+
+```{r, echo=FALSE}
+
+## Compare models
+  mods.aic.any <- data.frame('model' = c('null','reproState','distance'),
+                             'AIC' = c(AIC(glm.nb(stoc_any_count ~ 1, data = anySTOC)),
+                                       AIC(any.nb.repro), 
+                                       AIC(any.nb.dist)))
+  mods.aic.any <- mods.aic.any[order(mods.aic.any$AIC),]  
+  mods.aic.any$delta_AIC <- mods.aic.any$AIC - mods.aic.any$AIC[1]
+  
+  mods.aic.any %>%
+    kbl(digits = 3) %>%
+    kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+  
+
+```
+
+
+### --------------------------------------------------------------------------------
+
+### -- Models using the number of female/male spotted owl detections as the response variable (negative binomial)
+###  
+```{r, echo=FALSE}
+
+## format counts for females and males
+
+  #keep necessary columns
+  fmSTOC <- acData[,c('FEMALE_N','MALE_N','duration','Distance','dist_intended','reproState')]
+  
+  #convert NAs to 0s and order levels
+  fmSTOC$count_female <- ifelse(is.na(fmSTOC$FEMALE_N), 0, fmSTOC$FEMALE_N)
+  fmSTOC$count_male <- ifelse(is.na(fmSTOC$MALE_N), 0, fmSTOC$MALE_N)
+  fmSTOC$reproState <- factor(fmSTOC$reproState, levels = c('pair','nest','fledged'))
+
+  #print
+  fmSTOC[,c('Distance','reproState','count_female','count_male')][order(fmSTOC$Distance)]
+
+  #look at distribution of counts
+  
+  hist(fmSTOC$count_female, xlab = 'count', main = 'Female')  
+    summary(fmSTOC$count_female)
+  
+  hist(fmSTOC$count_male, xlab = 'count', main = 'Male')   
+    summary(fmSTOC$count_male)
+    
+```
+
+
+#### 1. effect of reproductive state -- separately for F/M
+
+```{r}
+
+  #females
+  fem.nb.repro <- glm.nb(count_female ~ reproState, data = fmSTOC)
+
+    summary(fem.nb.repro)
+    
+    #reorder levels
+    fmSTOC2 <- fmSTOC; fmSTOC2$reproState <- factor(fmSTOC2$reproState, levels = c('fledged','nest','pair'))
+    fem.nb.repro2 <- glm.nb(count_female ~ reproState, data = fmSTOC2)
+    
+      summary(fem.nb.repro2)
+  
+
+  #males
+  male.nb.repro <- glm.nb(count_male ~ reproState, data = fmSTOC)
+
+    summary(male.nb.repro)
+    
+    #reorder levels
+    male.nb.repro2 <- glm.nb(count_female ~ reproState, data = fmSTOC2)
+    
+      summary(male.nb.repro2)    
+
+        
+  #back-transformed coefficients
+  allEffects(fem.nb.repro) 
+  allEffects(male.nb.repro) 
+  
+```
+
+
+```{r, echo=FALSE}
+
+## plot effects above
+
+#save effects as dataframe
+  df.f.repro.nb <- allEffects(fem.nb.repro)
+  df.f.repro.nb <- data.frame(df.f.repro.nb$reproState); df.f.repro.nb$sex <- 'female'
+
+  df.m.repro.nb <- allEffects(male.nb.repro)
+  df.m.repro.nb <- data.frame(df.m.repro.nb$reproState); df.m.repro.nb$sex <- 'male'
+  
+  fm.repro.nb <- rbind(df.f.repro.nb, df.m.repro.nb)
+  
+  fm.repro.nb$reproState <- factor(fm.repro.nb$reproState, levels = c('pair','nest','fledged'))
+  
+  #and plot
+  plot.fm.repro.nb <- ggplot(fm.repro.nb, aes(x = reproState, y = fit)) + 
+      geom_point(size = 3) +
+      geom_errorbar(aes(ymin = lower, ymax = upper)) +
+      facet_grid(~sex) +
+      # ylim(c(0,1)) +
+      ylab('Probability') +
+      # scale_color_manual(values = c('tomato1', 'steelblue2', 'seagreen')) +
+      # ggtitle('Spotted owl detections by reproductive state') +
+      theme(panel.background = element_rect(fill = 'transparent'),
+            panel.grid = element_line(color = 'gray90'),
+            axis.line = element_line(),
+            axis.title = element_text(size = 18),
+            axis.title.x = element_blank(),
+            strip.text = element_text(size = 16),
+            axis.text = element_text(size = 16),
+            plot.title = element_text(hjust = 0.5),
+            legend.text = element_text(size = 16),
+            legend.title = element_blank(),
+            legend.position = 'none',
+            legend.background = element_rect(fill='transparent'))
+    plot.fm.repro.nb
+
+# plot(allEffects(fem.prop.repro))  #for comparison
+# plot(allEffects(male.prop.repro))  #for comparison
+
+```
+
+###  
+#### 2. effect of distance from center -- separately for F/M
+
+```{r}
+
+  #females
+  fem.nb.dist <- glm.nb(count_female ~ Distance, data = fmSTOC)
+  
+    summary(fem.nb.dist)
+
+  #males
+  male.nb.dist <- glm.nb(count_male ~ Distance, data = fmSTOC)  
+  
+    summary(male.nb.dist)
+    
+    #effects
+    allEffects(fem.nb.dist)
+    allEffects(male.nb.dist) 
+
+```
+
+```{r, echo=FALSE}
+
+## plot effects
+
+  #create longform dataframe
+  fmLong <- melt(fmSTOC[,c('Distance','reproState','count_female','count_male')], 
+                 id.vars = c('Distance','reproState'), value.name = 'count', variable.name = 'sex')
+
+
+  #and plot
+  plot.fm.nb.dist <- ggplot(fmLong, aes(x = Distance/1000, y = count, color = sex, fill = sex)) +
+      geom_point(data = fmLong[fmLong$sex %in% 'count_male',], alpha = 0.3) +
+      geom_point(data = fmLong[fmLong$sex %in% 'count_female',], alpha = 0.3) +
+      geom_smooth(data = fmLong[fmLong$sex %in% 'count_male',],
+                  method = 'glm.nb', formula = y ~ x) +
+      geom_smooth(data = fmLong[fmLong$sex %in% 'count_female',],
+                  method = 'glm.nb', formula = y ~ x) +
+      geom_rug(data = fmLong[fmLong$sex %in% 'count_male' & fmLong$count > 0,], 
+               color = 'cyan4', sides = "b", outside = TRUE) +
+      geom_rug(data = fmLong[fmLong$sex %in% 'count_female' & fmLong$count > 0,], 
+               color = 'tomato1', sides = "b") +
+      # scale_color_manual(values = c('cyan4','tomato1')) +
+      coord_cartesian(clip = "off") +
+      xlab('Distance from center (km)') + ylab('STOC count') +
+      ggtitle('Negative binomial') +
+        theme(
+          panel.background = element_rect(fill = 'transparent'),
+          panel.grid = element_line(color = 'gray90'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          # axis.title.x = element_blank(),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5, size = 18),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          # legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot.fm.nb.dist
+ 
+    
+
+# plot(allEffects(fem.nb.dist))
+# plot(allEffects(male.nb.dist))
+
+```
+
+
+###  
+#### 3. interaction of reproState * distance
+
+```{r}
+
+  #females
+  # fem.nb.repro.dist <- glm.nb(count_female ~ reproState * Distance, data = fmSTOC)
+  # 
+  #   summary(fem.nb.repro.dist)
+  # 
+  #   #reorder levels
+  #   fem.nb.repro.dist2 <- glm.nb(count_female ~ reproState * Distance, data = fmSTOC2)
+  # 
+  #     summary(fem.nb.repro.dist)
+  #   
+  #males
+  # male.nb.repro.dist <- glm.nb(count_male ~ reproState * Distance, data = fmSTOC)
+  # 
+  #   summary(male.nb.repro.dist)
+  # 
+  #   #reorder levels
+  #   male.nb.repro.dist2 <- glm.nb(count_male ~ reproState * Distance, data = fmSTOC2)
+  # 
+  #     summary(male.nb.repro.dist2)
+
+
+  #back-transformed coefficients
+  # allEffects(fem.nb.repro.dist)
+  # allEffects(male.nb.repro.dist)
+  
+```
+
+```{r, echo=FALSE}
+
+## plot 
+
+    
+```
+
+
+###  
+#### -- compare models (females)
+
+```{r, echo=FALSE}
+
+## Compare models
+
+  #female
+  mods.aic.f <- data.frame('model' = c('null','reproState','distance'),
+                           'AIC' = c(AIC(glm.nb(count_female ~ 1, data = fmSTOC)),
+                                     AIC(fem.nb.repro), 
+                                     AIC(fem.nb.dist)))
+  mods.aic.f <- mods.aic.f[order(mods.aic.f$AIC),]  
+  mods.aic.f$delta_AIC <- mods.aic.f$AIC - mods.aic.f$AIC[1]
+  
+                         
+  mods.aic.f %>%
+    kbl(digits = 3) %>%
+    kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+  
+
+```
+
+#### -- compare models (males)
+```{r, echo=FALSE}
+
+## Compare models
+
+  #male
+  mods.aic.m <- data.frame('model' = c('null','reproState','distance'),
+                           'AIC' = c(AIC(glm.nb(count_male ~ 1, data = fmSTOC)),
+                                     AIC(male.nb.repro), 
+                                     AIC(male.nb.dist)))
+  mods.aic.m <- mods.aic.m[order(mods.aic.m$AIC),]  
+  mods.aic.m$delta_AIC <- mods.aic.m$AIC - mods.aic.m$AIC[1]
+  
+                         
+  mods.aic.m %>%
+    kbl(digits = 3) %>%
+    kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+```
+
+
+##

@@ -1,4 +1,4 @@
-## models
+## binomial/bernoulli models (see also 03_mkdown_models)
 
 library(data.table)
 library(broom)
@@ -12,7 +12,7 @@ library(plyr)
   head(acData)  
   
 ## format for a binomial model (each row is an ARU site)
-  anySTOC <- acData[,c('STOC_ANY_N','nDaysSampled','dist_m','reproState')]
+  anySTOC <- acData[,c('STOC_ANY_N','nDaysSampled','Distance','reproState')]
   head(anySTOC)  
     table(anySTOC$STOC_ANY_N, useNA = 'always') 
   
@@ -30,10 +30,10 @@ library(plyr)
     
 ## generalized linear models (GLMs) -- Bernoulli/Binomial distribution (logistic regression) 
     
-  #how many sites had each reproState
+  #how many sites had each reproState?
     tapply(anySTOC$STOC, anySTOC$reproState, length)
     
-  #how many sites had STOC detections by each reproState
+  #how many sites had STOC detections by each reproState?
     tapply(anySTOC$STOC, anySTOC$reproState, sum)
     
   #What proportion STOC detections were from activity centers in each reproState?
@@ -349,7 +349,7 @@ library(plyr)
   
     
 #############      
-## trying to format data w/ sex as covariate in bernoulli model
+## trying to format data w/ sex as covariate in bernoulli model *GAVE UP ON THIS -- DOESN"T MAKE SENSE*
     
     ## ---
     

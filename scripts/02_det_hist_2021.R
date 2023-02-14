@@ -10,9 +10,8 @@ library(tidyverse)
   #detections of residents only from 01_data_prep (with surveys removed and detections within 1 mile of surveys also removed)
   ac21stoc <- fread('output/03_ac_STOC_2021_noSurveys1mile.csv') 
   
-  #Julie's dataframe with dates for all the stations (not just ones with STOC detected)
-  # ac21stva <- fread('COA_AC_Work/from_Julie/data_output/COAAC_21_strixSeason_wide.csv')   #this one has STVA (but not weekly; can't use here)
-  ac21jj <- fread('COA_AC_Work/from_Julie/data_output/summary_stnDates_COAAC2021.csv') #this one has start/end dates **WHY ARE THEY DIFFERENT?**
+  #Julie's dataframe with start/end dates for all the stations (not just ones with STOC detected)
+  ac21jj <- fread('COA_AC_Work/from_Julie/data_output/COAAC_2021_SampleSummary_fromNoise.csv')
   
   #reformat columns to merge
   ac21stoc$SITESTN <- paste(toupper(substr(ac21stoc$SITE_STN, 1, 2)), 
@@ -25,17 +24,16 @@ library(tidyverse)
   
 
 ## Create detection history template ####
-  ac21jj
   
   #format dates
-  ac21jj$start <- as.POSIXct(strptime(ac21jj$min, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
-  ac21jj$stop <- as.POSIXct(strptime(ac21jj$max, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
+  ac21jj$start <- as.POSIXct(strptime(ac21jj$min_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
+  ac21jj$stop <- as.POSIXct(strptime(ac21jj$max_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
   
   #get earliest/latest deployment/retrieval dates
   (beg <- ac21jj$start[order(ac21jj$start)][1])
   (end <- ac21jj$stop[order(ac21jj$stop)][length(ac21jj$stop)])
   
-  ac21jj$duration <- ac21jj$stop - ac21jj$start #not sure why dates are different and this doesn't match nDaysSampled
+  ac21jj$duration <- difftime(ac21jj$stop, ac21jj$start) #nDays is unique days while duration is the difference
   
   #generate list of all dates within date range above
   (nDays <- interval(beg, end)/days(1))
@@ -47,7 +45,7 @@ library(tidyverse)
                         'date' = rep(range_df, nrow(ac21jj)))
   nrow(dethist)
     #should be 145 sites * 138 days = 19728 but it's actually 145*39=20155
-    #why are there 139 unique days here?
+    #why are there 139 unique days here -- bc it includes start day now?
   
   merged <- merge(ac21jj[,c('SITESTN','start','stop','duration')], dethist, by = 'SITESTN', all = TRUE)
   
@@ -97,7 +95,7 @@ library(tidyverse)
     
   #merge with detection history template
   head(dh_weeks)  
-  head(ac21_agg) #will need to choose which species/call type to use
+  head(ac21_agg) 
     ac21_agg$date <- as.POSIXct(strptime(ac21_agg$NIGHT, '%Y-%m-%d'), tz = 'America/Los_Angeles') #for merging
   
   dh_stoc <- merge(dh_weeks, ac21_agg, by = c('SITESTN','date'), all.x = TRUE)
@@ -130,35 +128,39 @@ library(tidyverse)
   #format 'week' so the columns will be ordered correctly
   dh_stoc$week <- factor(dh_stoc$week, levels = c('-',seq(1,20,1)))
   
-  #convert long to wide
+  #convert long to wide, and add summary of weeks with detections
   
   ## STOC_4n
     dh_weekly_stoc_4n <- dcast(dh_stoc, SITESTN + start ~ week, value.var = 'STOC_4N_N',
                                fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_4n <- dh_weekly_stoc_4n[,-3]
+    dh_weekly_stoc_4n$detWeeks <- rowSums(dh_weekly_stoc_4n[,c(3:22)] != 0, na.rm = TRUE)
 
   ## STOC_ANY
     dh_weekly_stoc_any <- dcast(dh_stoc, SITESTN + start ~ week, value.var = 'STOC_ANY_N',
                                fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_any <- dh_weekly_stoc_any[,-3]
+    dh_weekly_stoc_any$detWeeks <- rowSums(dh_weekly_stoc_any[,c(3:22)] != 0, na.rm = TRUE)
     
   ## STOC_FEMALE
     dh_weekly_stoc_female <- dcast(dh_stoc, SITESTN + start ~ week, value.var = 'FEMALE_N', 
                                    fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_female <- dh_weekly_stoc_female[,-'-']
+    dh_weekly_stoc_female$detWeeks <- rowSums(dh_weekly_stoc_female[,c(3:22)] != 0, na.rm = TRUE)
     
   ## STOC_MALE
     dh_weekly_stoc_male <- dcast(dh_stoc, SITESTN + start ~ week, value.var = 'MALE_N',
                                  fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_male <- dh_weekly_stoc_male[,-'-']
+    dh_weekly_stoc_male$detWeeks <- rowSums(dh_weekly_stoc_male[,c(3:22)] != 0, na.rm = TRUE)
 
   ## Can't do STVA here because we don't have all detections (just ones tagged while reviewing STOC)
     
   ## Save!
-    write.csv(dh_weekly_stoc_4n, 'output/weekly_dethist/08_dh_ac_2021_stoc4n.csv')
-    write.csv(dh_weekly_stoc_any, 'output/weekly_dethist/08_dh_ac_2021_stocAny.csv')
-    write.csv(dh_weekly_stoc_female, 'output/weekly_dethist/08_dh_ac_2021_stocFemale.csv')    
-    write.csv(dh_weekly_stoc_male, 'output/weekly_dethist/08_dh_ac_2021_stocMale.csv')    
+    # write.csv(dh_weekly_stoc_4n, 'output/08_weekly_dethist/08_dh_ac_2021_stoc4n.csv')
+    # write.csv(dh_weekly_stoc_any, 'output/08_weekly_dethist/08_dh_ac_2021_stocAny.csv')
+    # write.csv(dh_weekly_stoc_female, 'output/08_weekly_dethist/08_dh_ac_2021_stocFemale.csv')    
+    # write.csv(dh_weekly_stoc_male, 'output/08_weekly_dethist/08_dh_ac_2021_stocMale.csv')    
 
   ## Do some quality control  ...  
     
@@ -177,16 +179,14 @@ library(tidyverse)
   nights_all <- nights_list %>% reduce(full_join, by = 'SITESTN')
     nights_all
   
-  #add total number of nights surveyed for each station  
+  #add back in all stations, and the total number of nights surveyed for each station  
   head(ac21jj)  
-  nights_all <- merge(nights_all, ac21jj[,c('SITESTN','duration')], by = 'SITESTN', all.x = TRUE)
+  nights_all <- merge(nights_all, ac21jj[,c('SITESTN','duration')], by = 'SITESTN', all = TRUE)
     nights_all
+    nights_all[is.na(nights_all)] <- 0
     
   #save
-  write.csv(nights_all, 'output/09_ac_21_nights_with_det.csv')  
+  # write.csv(nights_all, 'output/09_ac_21_nights_with_det.csv')
     
+
     
-## And summarize number of weeks with detections ####
-    
-  
-  
