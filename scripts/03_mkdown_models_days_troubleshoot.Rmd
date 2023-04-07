@@ -1,0 +1,377 @@
+---
+title: "Activity center models - days with detections"
+author: "Cara"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-packages, include=FALSE}
+library(data.table)
+library(plyr)
+library(broom)
+library(tidyverse)
+library(effects)
+library(ggplot2)
+library(kableExtra)
+library(lme4)
+library(glmmTMB)
+library(ggeffects)
+```
+
+------------------------------------------------------------------------
+
+### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2021
+
+------------------------------------------------------------------------
+
+#### Load data:
+
+##### 145 rows = 145 ARU stations from 4 different study areas
+
+```{r echo=FALSE}
+  #import nDays summary
+  daysSTOC <- fread('../output/09_ac_21_nights_with_det.csv')
+
+  #import station summary
+  acData <- fread('../output/05_ac_2021_merged.csv')
+  
+  #merge some columns and order level
+  daysMerge <- merge(daysSTOC[,-c('V1')], acData[,c('SITESTN','reproState','Distance','dist_intended')])
+  daysMerge$reproState <- factor(daysMerge$reproState, levels = c('pair','nest','fledged'))
+
+  daysMerge[,-c('dist_intended')]
+    
+```
+
+------------------------------------------------------------------------
+
+### -- Models using the proportion of survey nights with any spotted owl detection as the response variable
+
+#### 1. Binomial with proportion data (distance from center as covariate)
+
+```{r}
+
+mod1 <- glm(cbind(nights_STOC_ANY, duration-nights_STOC_ANY) ~ Distance,
+            data = daysMerge, family = binomial(link = 'logit'))
+summary(mod1)
+
+```
+
+We have overdispersion (residual deviance \>\>\> df)  
+This is just with Distance but it's the same with reproState and interaction
+
+#### 2. Try quasibinomial:
+
+```{r}
+
+mod2 <- glm(cbind(nights_STOC_ANY, duration-nights_STOC_ANY) ~ Distance,
+            data = daysMerge, family = quasibinomial(link = 'logit'))
+summary(mod2)
+
+```
+
+
+Plot both:
+
+```{r}
+
+plot.binom <- ggplot(daysMerge, aes(x = Distance, y = nights_STOC_ANY/duration,
+                      nights = nights_STOC_ANY, total = duration)) +
+       geom_smooth(formula = cbind(nights,total-nights) ~ x, 
+                   method = 'glm', method.args = list(family = binomial(link = 'logit'))) +
+       geom_point(data = daysMerge, aes(x = Distance, y = nights_STOC_ANY / duration)) +
+       ylim(0,0.7) +
+       ggtitle('Binomial') + ylab('Proportion of nights with detection') +
+       theme_bw()
+
+plot.quasibinom <- ggplot(daysMerge, aes(x = Distance, y = nights_STOC_ANY/duration,
+                      nights = nights_STOC_ANY, total = duration)) +
+       geom_smooth(formula = cbind(nights,total-nights) ~ x, 
+                   method = 'glm', method.args = list(family = quasibinomial(link = 'logit'))) +
+       geom_point(data = daysMerge, aes(x = Distance, y = nights_STOC_ANY / duration)) +
+       ylim(0,0.7) +
+       ggtitle('Quasibinomial') + ylab('Proportion of nights with detection') +
+       theme_bw()
+
+plot.binom
+plot.quasibinom
+
+```
+
+That has more realistic uncertainty.
+
+#### 3. Try GLMMs with random effect for ARU station (per Warton and Hui):
+
+```{r}
+#null model
+mod3.null <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
+                   ~ 1 + (1|SITESTN), family = binomial(link = 'logit'), data = daysMerge)
+summary(mod3.null)
+
+#reproductive state
+mod3.repro <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
+                    ~ reproState + (1|SITESTN), 
+                    family = binomial(link = 'logit'), data = daysMerge)
+summary(mod3.repro)
+
+#distance
+mod3.dist <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
+                   ~ Distance + (1|SITESTN),
+                    family = binomial(link = 'logit'), data = daysMerge)
+```
+
+Convergence issues. Try scaling the distance variable and try with optimization:
+```{r}
+#scale distance variable
+daysMerge$distScaled <- scale(daysMerge$Distance)
+  hist(daysMerge$Distance)  
+  hist(daysMerge$distScaled)
+  
+#distance (scaled)  
+mod3.dist.scaled <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
+                          ~ distScaled + (1|SITESTN),
+                          family = binomial(link = 'logit'), data = daysMerge)
+
+#try with optimization
+# glmerControl(optimizer = 'Nelder_Mead')
+mod3.dist.nm <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
+                      ~ distScaled + (1|SITESTN),
+                      family = binomial(link = 'logit'), data = daysMerge)
+summary(mod3.dist.nm)
+
+```
+
+Still having convergence issues. Try REML... but can't specify in glmer, and can't specify binomial with nlme.
+
+#### 4. Try random effects with another package (glmmTMB):
+
+```{r}
+
+mod3.dist.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
+                         ~ Distance + (1|SITESTN), data = daysMerge, 
+                         family = binomial(link = 'logit')) 
+
+mod3.dist.tmb.reml <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
+                              ~ Distance + (1|SITESTN), data = daysMerge, 
+                              family = binomial(link = 'logit'), REML = TRUE) 
+
+#works both with and without REML now (good, but why?)
+summary(mod3.dist.tmb)
+summary(mod3.dist.tmb.reml)
+
+```
+
+Plot effects -- don't use REML model because fixed/random effects are not comparable (??)
+
+```{r}
+
+#predict some values (fixed effects)
+predsFE <- ggpredict(mod3.dist.tmb, terms = 'Distance', type = 'fixed', back.transform = TRUE )
+  
+  predsFEplot <- ggplot(data = data.frame(predsFE), aes(x = x, y = predicted)) +
+        geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = 'grey80') +
+        geom_line(color = 'blue', lwd = 1) +
+        geom_point(data = daysMerge, aes(x = Distance, y = nights_STOC_ANY / duration)) +
+        ggtitle('Fixed effect') + xlab('Distance') +
+        ylim(c(0,0.7)) +
+        theme_bw()
+
+#predict some values (random effect)
+predsRE <- ggpredict(mod3.dist.tmb, terms = 'Distance', type = 're', back.transform = TRUE )
+
+  predsREplot <- ggplot(data = data.frame(predsRE), aes(x = x, y = predicted)) +
+        geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = 'grey80') +
+        geom_line(color = 'blue', lwd = 1) +
+        geom_point(data = daysMerge, aes(x = Distance, y = nights_STOC_ANY / duration)) +
+        ggtitle('Random effect ("prediction interval")') + xlab('Distance') +
+        ylim(c(0,0.7)) +
+        theme_bw()  
+  
+  predsFEplot
+  predsREplot
+  # plot(predsFE) #or this way
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+
+## look at random effects (REVISIT THIS)
+# 
+# ranInt <- as.data.frame(ranef(mod3.dist.tmb))
+# 
+# #
+# newdat <- expand.grid('Distance' = daysMerge$Distance)
+# mm <- model.matrix(delete.response(terms(mod3.dist.tmb)), newdat)
+# # mmBT <- plogis(mm)
+# 
+# newdat$propANY <- plogis(drop(mm %*% fixef(mod3.dist.tmb)[["cond"]]))
+# predvar <- diag(mm %*% vcov(mod3.dist.tmb)[["cond"]] %*% t(mm))
+# newdat$SE <- sqrt(predvar)
+# newdat$SE2 <- sqrt(predvar + sigma(mod3.dist.tmb)^2)
+# 
+# #plot
+# 
+# daysMerge$propANY <- daysMerge$nights_STOC_ANY / daysMerge$duration
+# 
+# 
+# pd <- position_dodge(width=0.4)
+# 
+# g0 <- ggplot(data = daysMerge, aes(x=Distance, y=propANY))+
+#     stat_sum(alpha=0.2,aes(size=..n..))+
+#     scale_size_continuous(breaks=1:4,range=c(2,5)) +
+#     geom_line(data=newdat)+
+#     geom_point(data=newdat,shape=17,size=3) +
+#     theme_bw() 
+# 
+# ## confidence intervals
+# g2 <- g0 + geom_linerange(data=newdat,
+#                           aes(ymin=propANY-2*SE, ymax=propANY+2*SE),
+#                           lwd=2, position=pd)
+# ## prediction intervals 
+# g2 + geom_linerange(data=newdat,
+#                     aes(ymin=propANY-2*SE2, ymax=propANY+2*SE2), position=pd)
+# 
+
+```
+
+
+------- 
+
+#### Now try reproState covariate
+
+```{r}
+
+mod3.repro.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
+                          ~ reproState + (1|SITESTN), data = daysMerge, 
+                          family = binomial(link = 'logit')) 
+summary(mod3.repro.tmb)
+
+```
+
+and plot:
+
+```{r}
+
+predsReproFE <- ggpredict(mod3.repro.tmb, terms = 'reproState', type = 'fixed', back.transform = TRUE )
+
+daysMerge$propANY <- daysMerge$nights_STOC_ANY / daysMerge$duration
+
+  reproFEplot <- ggplot(data = data.frame(predsReproFE), aes(x = x, y = predicted)) +
+        geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
+        ggtitle('Fixed effect') + xlab('reproductive state') +
+        # geom_point(data = daysMerge, aes(x = reproState, y = propANY)) +
+        # ylim(c(0,0.7)) +
+        theme_bw()
+  
+
+predsReproRE <- ggpredict(mod3.repro.tmb, terms = 'reproState', type = 'random', back.transform = TRUE )
+
+  reproREplot <- ggplot(data = data.frame(predsReproRE), aes(x = x, y = predicted)) +
+        geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
+        ggtitle('Random effect') + xlab('reproductive state') +
+        # ylim(c(0,0.7)) +
+        theme_bw()
+  
+  reproFEplot
+  # plot(predsReproFE)
+  reproREplot  
+  # plot(predsReproRE)
+
+  
+```
+
+What's up with error bars here? And why are the estimates this low?
+
+------- 
+
+#### Now try distance*reproState interaction
+
+```{r}
+mod3.repro.dist.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
+                              ~ reproState * Distance + (1|SITESTN), data = daysMerge, 
+                              family = binomial(link = 'logit')) 
+summary(mod3.repro.dist.tmb)
+```
+
+and plot:
+
+```{r}
+predsDistReproFE <- ggpredict(mod3.repro.dist.tmb, terms = c('Distance','reproState'),
+                              type = 'fixed', back.transform = TRUE)
+
+daysMerge$group <- daysMerge$reproState
+
+distReproFEplot <- ggplot(data = data.frame(predsDistReproFE), aes(x = x, y = predicted)) +
+        geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = 'grey80') +
+        geom_line(color = 'blue', lwd = 1) +
+        geom_point(data = daysMerge, aes(x = Distance, y = propANY)) +
+        ggtitle('Fixed effect') + xlab('distance') +
+        facet_grid(~group) +
+        ylim(c(0,0.85)) +
+        theme_bw()
+
+predsDistReproRE <- ggpredict(mod3.repro.dist.tmb, terms = c('Distance','reproState'),
+                              type = 'random', back.transform = TRUE)
+
+distReproREplot <- ggplot(data = data.frame(predsDistReproRE), aes(x = x, y = predicted)) +
+        geom_ribbon(aes(ymin = conf.low, ymax = conf.high), fill = 'grey80') +
+        geom_line(color = 'blue', lwd = 1) +
+        geom_point(data = daysMerge, aes(x = Distance, y = propANY)) +
+        ggtitle('Random effect') + xlab('distance') +
+        facet_grid(~group) +
+        ylim(c(0,0.85)) +
+        theme_bw()
+
+  distReproFEplot
+  distReproREplot  #figure out why ribbon is off here
+  
+  # plot(predsDistReproFE, facet = TRUE)
+  # plot(predsDistReproRE, facet = TRUE)
+  
+  ## or use functions coef and intervals
+  head(daysMerge)
+```
+
+```{r eval=FALSE, include=FALSE}
+# #another way (REVISIT THIS)
+# 
+# ## make prediction data frame
+# newdat <- expand.grid(Distance=unique(daysMerge$Distance), reproState=c('pair','nest','fledged'))
+# ## design matrix (fixed effects)
+# mm <- model.matrix(delete.response(terms(mod3.repro.dist.tmb)),newdat)
+# ## linear predictor (for GLMMs, back-transform this with the
+# ##  inverse link function (e.g. plogis() for binomial, beta;
+# ##  exp() for Poisson, negative binomial
+# newdat$propANY <- plogis(drop(mm %*% fixef(mod3.repro.dist.tmb)[["cond"]]))
+# predvar <- plogis(diag(mm %*% vcov(mod3.repro.dist.tmb)[["cond"]] %*% t(mm)))
+# newdat$SE <- sqrt(predvar) 
+# newdat$SE2 <- sqrt(predvar+sigma(mod3.repro.dist.tmb)^2)
+# 
+# #plot
+# g0 <- ggplot(data = daysMerge, aes(x=Distance, y=propANY))+
+#     stat_sum(alpha=0.2,aes(size=..n..))+
+#     scale_size_continuous(breaks=1:4,range=c(2,5)) +
+#     geom_line(data=newdat)+
+#     geom_point(data=newdat,shape=17,size=3) +
+#     theme_bw() 
+# 
+# ## confidence intervals
+# g2 <- g0 + geom_linerange(data=newdat,
+#                           aes(ymin=propANY-2*SE, ymax=propANY+2*SE),
+#                           lwd=2, position=pd)
+# ## prediction intervals 
+# g2 + geom_linerange(data=newdat,
+#                     aes(ymin=propANY-2*SE2, ymax=propANY+2*SE2), position=pd)
+
+
+```
+
