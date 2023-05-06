@@ -4,6 +4,7 @@ library(data.table)
 library(ggplot2)
 
 
+
 ## load data ####
 ac21_agg <- fread('output/06_ac_21_by_station_night.csv')
 ac21_agg$siteID <- sapply(strsplit(as.character(ac21_agg$SITESTN), '\\_'), '[', 1)
@@ -50,8 +51,8 @@ ac21_agg$siteID <- factor(ac21_agg$siteID, levels = c('WC','MC','DC','UG'))
   
 ## Proportion of units with detections each week (corrected for effort) ####
   
-ac21_fem_dh <- fread('output/08_weekly_dethist/08_dh_ac_2021_stocFemale.csv')
-ac21_male_dh <- fread('output/08_weekly_dethist/08_dh_ac_2021_stocMale.csv')
+ac21_fem_dh <- fread('output/08_weekly_dethist_left/08_dh_ac_2021_stocFemale.csv')
+ac21_male_dh <- fread('output/08_weekly_dethist_left/08_dh_ac_2021_stocMale.csv')
 
   #format 'site' column
   ac21_fem_dh$site <- sapply(strsplit(as.character(ac21_fem_dh$SITESTN), '\\_'), '[', 1)
@@ -62,20 +63,20 @@ ac21_male_dh <- fread('output/08_weekly_dethist/08_dh_ac_2021_stocMale.csv')
   ac21_male_dh$sex <- 'male'
 
   ## If we need the *number* of detections per week...
-    # #convert back to long
-    # ac21_fem_long <- melt(ac21_fem_dh[,c(4:23,25:26)], id.vars = c('site','sex'))
-    # ac21_fem_long
-    # 
-    # ac21_male_long <- melt(ac21_male_dh[,c(4:23,25:26)], id.vars = c('site','sex'))
-    # ac21_male_long
-    # 
-    # #combine and plot
-    # ac21_long <- rbind(ac21_fem_long, ac21_male_long)
-    # colnames(ac21_long) <- c('site','sex','week','n')
-    # 
-    # ggplot(data = ac21_long, aes(x = week, y = n)) +
-    #   geom_point() +
-    #   facet_grid(~sex)  
+    #convert back to long
+    ac21_fem_long <- melt(ac21_fem_dh[,c(4:23,25:26)], id.vars = c('site','sex'))
+    ac21_fem_long
+
+    ac21_male_long <- melt(ac21_male_dh[,c(4:23,25:26)], id.vars = c('site','sex'))
+    ac21_male_long
+
+    #combine and plot
+    ac21_long <- rbind(ac21_fem_long, ac21_male_long)
+    colnames(ac21_long) <- c('site','sex','week','n')
+
+    ggplot(data = ac21_long, aes(x = week, y = n)) +
+      geom_point() +
+      facet_grid(~sex)
     
   #get the number of units with detections and number of sites surveyed each week/site
   sitesFemale <- NULL  

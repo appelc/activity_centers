@@ -8,10 +8,10 @@ library(tidyverse)
 ## Read in data ----------------------------------------------------------------
 
   #detections of focal pair only from 01_data_prep script
-  ac22stocRes <- fread('output/02_ac_STOC_2022_residents.csv')
+  ac22stocRes <- fread('output/02_ac_STOC_2022_residents.csv') ; ac22stocRes <- ac22stocRes[,-c('V1')]
   
   #cleaned up duration and distance info
-  ac22merged <- fread('output/05_ac_2022_merged.csv')
+  ac22merged <- fread('output/05_ac_2022_merged.csv') ; ac22merged <- ac22merged[,-c('V1')]
   
 
 ## STEP 1: LONG-FORMAT DETECTION HISTORY #######################################  
@@ -36,7 +36,7 @@ library(tidyverse)
                         'date' = rep(range_df, nrow(ac22merged)))
   nrow(dethist)
     #should be 146 sites * 141 days = 20586 but it's actually 145*142=20732
-    #why are there 142 unique days here -- bc it includes start day?
+    #why are there 142 unique days here -- bc it includes start day I think
   
   merged <- merge(ac22merged[,c('SITE_STN','start','stop','duration','Distance','dist_intended','reproState')], dethist, 
                   by = 'SITE_STN', all = TRUE)
@@ -76,7 +76,7 @@ library(tidyverse)
     table(dh_weeks$week_staggered, useNA = 'always') #good, no NAs
 
     #save week date key
-    write.csv(rangeDFwks, 'output/08_weekly_dates_staggered.csv')
+    # write.csv(rangeDFwks, 'output/08_weekly_dates_staggered.csv')
 
             
 ## Aggregate detections by night -----------------------------------------------
@@ -151,44 +151,58 @@ library(tidyverse)
     
 ## STEP 2: WEEKLY (WIDE) DETECTION HISTORY #####################################      
 
-  # dh_stoc <- fread('output/07_ac_22_dethist_long.csv')  #if necessary
+  dh_stoc <- fread('output/07_ac_22_dethist_long.csv'); dh_stoc <- dh_stoc[,-c('V1')]  #if necessary
 
+    #if just imported, check classes
+    sapply(dh_stoc, class)  
+    dh_stoc$STOC_4N <- as.numeric(dh_stoc$STOC_4N); dh_stoc$STOC_ANY <- as.numeric(dh_stoc$STOC_ANY)
+    dh_stoc$FEMALE <- as.numeric(dh_stoc$FEMALE) ; dh_stoc$MALE <- as.numeric(dh_stoc$MALE)
+    dh_stoc$STOC_PAIR <- as.numeric(dh_stoc$STOC_PAIR) ; dh_stoc$STOC_IRREG <- as.numeric(dh_stoc$STOC_IRREG)
+    
+            
 ## Convert long to wide (LEFT-JUSTIFIED) ---------------------------------------
   
   ## STOC_4n
-    dh_weekly_stoc_4n <- dcast(dh_stoc, SITE_STN + start ~ week_left, value.var = 'STOC_4N',
+    dh_weekly_stoc_4n <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'STOC_4N',
                                fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
-    dh_weekly_stoc_4n <- dh_weekly_stoc_4n[,-'-']
+    dh_weekly_stoc_4n <- dh_weekly_stoc_4n[,-'NA']
     dh_weekly_stoc_4n$detWeeks <- rowSums(dh_weekly_stoc_4n[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_4n$survWeeks <- rowSums(!is.na(dh_weekly_stoc_4n[,c(3:22)]))
 
   ## STOC_ANY
-    dh_weekly_stoc_any <- dcast(dh_stoc, SITE_STN + start ~ week_left, value.var = 'STOC_ANY',
+    dh_weekly_stoc_any <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'STOC_ANY',
                                fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
-    dh_weekly_stoc_any <- dh_weekly_stoc_any[,-'-']
+    dh_weekly_stoc_any <- dh_weekly_stoc_any[,-'NA']
     dh_weekly_stoc_any$detWeeks <- rowSums(dh_weekly_stoc_any[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_any$survWeeks <- rowSums(!is.na(dh_weekly_stoc_any[,c(3:22)]))
     
   ## STOC_FEMALE
-    dh_weekly_stoc_female <- dcast(dh_stoc, SITE_STN + start ~ week_left, value.var = 'FEMALE', 
+    dh_weekly_stoc_female <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'FEMALE', 
                                    fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
-    dh_weekly_stoc_female <- dh_weekly_stoc_female[,-'-']
+    dh_weekly_stoc_female <- dh_weekly_stoc_female[,-'NA']
     dh_weekly_stoc_female$detWeeks <- rowSums(dh_weekly_stoc_female[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_female$survWeeks <- rowSums(!is.na(dh_weekly_stoc_female[,c(3:22)]))
     
   ## STOC_MALE
-    dh_weekly_stoc_male <- dcast(dh_stoc, SITE_STN + start ~ week_left, value.var = 'MALE',
+    dh_weekly_stoc_male <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'MALE',
                                  fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
-    dh_weekly_stoc_male <- dh_weekly_stoc_male[,-'-']
+    dh_weekly_stoc_male <- dh_weekly_stoc_male[,-'NA']
     dh_weekly_stoc_male$detWeeks <- rowSums(dh_weekly_stoc_male[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_male$survWeeks <- rowSums(!is.na(dh_weekly_stoc_male[,c(3:22)]))
 
   ## STOC_PAIR
-    dh_weekly_stoc_pair <- dcast(dh_stoc, SITE_STN + start ~ week_left, value.var = 'STOC_PAIR',
+    dh_weekly_stoc_pair <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'STOC_PAIR',
                                  fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
-    dh_weekly_stoc_pair <- dh_weekly_stoc_pair[,-'-']
+    dh_weekly_stoc_pair <- dh_weekly_stoc_pair[,-'NA']
     dh_weekly_stoc_pair$detWeeks <- rowSums(dh_weekly_stoc_pair[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_pair$survWeeks <- rowSums(!is.na(dh_weekly_stoc_pair[,c(3:22)]))
+    
+  ## STOC_IRREG
+    dh_weekly_stoc_irreg <- dcast(dh_stoc, SITE_STN + start ~ as.integer(week_left), value.var = 'STOC_IRREG',
+                                 fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
+    dh_weekly_stoc_irreg <- dh_weekly_stoc_irreg[,-'NA']
+    dh_weekly_stoc_irreg$detWeeks <- rowSums(dh_weekly_stoc_irreg[,c(3:22)] != 0, na.rm = TRUE)
+    dh_weekly_stoc_irreg$survWeeks <- rowSums(!is.na(dh_weekly_stoc_irreg[,c(3:22)]))
     
     
 ## Convert long to wide (STAGGERED-ENTRY) --------------------------------------
@@ -199,50 +213,57 @@ library(tidyverse)
     dh_weekly_stoc_4n_st$detWeeks <- rowSums(dh_weekly_stoc_4n_st[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_4n_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_4n_st[,c(3:22)]))
     
-    ## STOC_ANY
+  ## STOC_ANY
     dh_weekly_stoc_any_st <- dcast(dh_stoc, SITE_STN + start ~ week_staggered, value.var = 'STOC_ANY',
                                 fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_any_st$detWeeks <- rowSums(dh_weekly_stoc_any_st[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_any_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_any_st[,c(3:22)]))
     
-    ## STOC_FEMALE
+  ## STOC_FEMALE
     dh_weekly_stoc_female_st <- dcast(dh_stoc, SITE_STN + start ~ week_staggered, value.var = 'FEMALE', 
                                    fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_female_st$detWeeks <- rowSums(dh_weekly_stoc_female_st[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_female_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_female_st[,c(3:22)]))
     
-    ## STOC_MALE
+  ## STOC_MALE
     dh_weekly_stoc_male_st <- dcast(dh_stoc, SITE_STN + start ~ week_staggered, value.var = 'MALE',
                                  fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_male_st$detWeeks <- rowSums(dh_weekly_stoc_male_st[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_male_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_male_st[,c(3:22)]))    
 
-    ## STOC_PAIR
+  ## STOC_PAIR
     dh_weekly_stoc_pair_st <- dcast(dh_stoc, SITE_STN + start ~ week_staggered, value.var = 'STOC_PAIR',
                                  fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
     dh_weekly_stoc_pair_st$detWeeks <- rowSums(dh_weekly_stoc_pair_st[,c(3:22)] != 0, na.rm = TRUE)
     dh_weekly_stoc_pair_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_pair_st[,c(3:22)]))
-    
+
+  ## STOC_IRREG
+    dh_weekly_stoc_irreg_st <- dcast(dh_stoc, SITE_STN + start ~ week_staggered, value.var = 'STOC_IRREG',
+                                     fun.aggregate = function(x) if(all(is.na(x)) == TRUE) NA_real_ else sum(x, na.rm = TRUE))
+    dh_weekly_stoc_irreg_st$detWeeks <- rowSums(dh_weekly_stoc_pair_st[,c(3:22)] != 0, na.rm = TRUE)
+    dh_weekly_stoc_irreg_st$survWeeks <- rowSums(!is.na(dh_weekly_stoc_irreg_st[,c(3:22)]))
+            
     
 ## Summarize number of nights with detections ----------------------------------
   head(ac22byNight)
     
   #aggregate sites and nights
-  nights_stoc_4n <- data.frame(table(ac22byNight[ac22byNight$STOC_4N_N > 0,]$SITE_STN)); colnames(nights_stoc_4n) <- c('SITE_STN','nights_STOC_4N')
-  nights_stoc_any <- data.frame(table(ac22byNight[ac22byNight$STOC_ANY_N > 0,]$SITE_STN)); colnames(nights_stoc_any) <- c('SITE_STN','nights_STOC_ANY')
-  nights_stoc_female <- data.frame(table(ac22byNight[ac22byNight$FEMALE_N > 0,]$SITE_STN)); colnames(nights_stoc_female) <- c('SITE_STN','nights_STOC_FEMALE')   
-  nights_stoc_male <- data.frame(table(ac22byNight[ac22byNight$MALE_N > 0,]$SITE_STN)); colnames(nights_stoc_male) <- c('SITE_STN','nights_STOC_MALE')   
+  nights_stoc_4n <- data.frame(table(ac22byNight[ac22byNight$STOC_4N > 0,]$SITE_STN)); colnames(nights_stoc_4n) <- c('SITE_STN','nights_STOC_4N')
+  nights_stoc_any <- data.frame(table(ac22byNight[ac22byNight$STOC_ANY > 0,]$SITE_STN)); colnames(nights_stoc_any) <- c('SITE_STN','nights_STOC_ANY')
+  nights_stoc_female <- data.frame(table(ac22byNight[ac22byNight$FEMALE > 0,]$SITE_STN)); colnames(nights_stoc_female) <- c('SITE_STN','nights_STOC_FEMALE')   
+  nights_stoc_male <- data.frame(table(ac22byNight[ac22byNight$MALE > 0,]$SITE_STN)); colnames(nights_stoc_male) <- c('SITE_STN','nights_STOC_MALE')   
   nights_stoc_pair <- data.frame(table(ac22byNight[ac22byNight$STOC_PAIR > 0,]$SITE_STN)); colnames(nights_stoc_pair) <- c('SITE_STN','nights_STOC_PAIR')   
+  nights_stoc_irreg <- data.frame(table(ac22byNight[ac22byNight$STOC_IRREG > 0,]$SITE_STN)); colnames(nights_stoc_irreg) <- c('SITE_STN','nights_STOC_IRREG')
   
   #merge all together
-  nights_list <- list(nights_stoc_4n, nights_stoc_any, nights_stoc_female, nights_stoc_male, nights_stoc_pair)
+  nights_list <- list(nights_stoc_4n, nights_stoc_any, nights_stoc_female, nights_stoc_male, nights_stoc_pair, nights_stoc_irreg)
   nights_all <- nights_list %>% reduce(full_join, by = 'SITE_STN')
     nights_all
   
   #add back in all stations, and the total number of nights surveyed for each station  
   head(ac22merged)  
   nights_all <- merge(nights_all, ac22merged[,c('SITE_STN','duration')], by = 'SITE_STN', all = TRUE)
-    nights_all
+    head(nights_all)
     nights_all[is.na(nights_all)] <- 0
     
  

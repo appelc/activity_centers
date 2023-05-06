@@ -47,5 +47,8 @@ det2021t$prop3 <- det2021t$`3` / det2021t$total
   det2021t
   
   ##e.g., for females: 0.8704776 + 0.11070912 = 0.9811867 of detections were within 0-1 km
-  ##e.g., for total: 0.7493134+0.16570034+0.018462008+0.003661886 = 0.9371376 of detections were within 2 km
+  ##e.g., for males: 0.7015832 + 0.18954674 = 0.8911299 of detection were within 0-1 km
+  ##e.g., for males: 0.7015832 + 0.18954674 + 0.07221861 + 0.022988506 = 0.9863371 of detection were within 2 km
+  ##e.g., for total: 0.7493134 + 0.16570034 + 0.018462008 + 0.003661886 = 0.9371376 of detections were within 2 km
   
+    

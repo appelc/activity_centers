@@ -40,24 +40,24 @@ library(lme4)
 
 ```{r echo=FALSE}
   #import nDays summary
-  daysSTOC <- fread('../output/09_ac_21_nights_with_det.csv')
+  daysSTOC <- fread('../output/09_ac_22_nights_with_det.csv')
 
   #import station summary
-  acData <- fread('../output/05_ac_2021_merged.csv')
+  acData <- fread('../output/05_ac_2022_merged.csv')
   
   #merge some columns and order level
-  daysMerge <- merge(daysSTOC[,-c('V1')], acData[,c('SITESTN','reproState','Distance','dist_intended')])
-  daysMerge$reproState <- factor(daysMerge$reproState, levels = c('pair','nest','fledged'))
+  daysMerge <- merge(daysSTOC[,-c('V1')], acData[,c('SITE_STN','reproState','Distance','dist_intended')])
+  daysMerge$reproState <- factor(daysMerge$reproState, levels = c('female','pair'))
 
   #add activity center ID field
-  daysMerge$siteID <- sapply(strsplit(as.character(daysMerge$SITESTN), '\\_'), '[', 1)
-  daysMerge$siteID <- factor(daysMerge$siteID, levels = c('WC','MC','DC','UG'))
+  daysMerge$siteID <- sapply(strsplit(as.character(daysMerge$SITE_STN), '\\_'), '[', 1)
+  daysMerge$siteID <- factor(daysMerge$siteID, levels = c('CC','DC','BC','LM'))
   
   #add nickname for presentations
-  daysMerge$nname <- ifelse(daysMerge$siteID %in% 'WC', 'P1',
-                            ifelse(daysMerge$siteID %in% 'MC', 'F2',
-                                   ifelse(daysMerge$siteID %in% 'DC','F1','N1')))
-  daysMerge$nname <- factor(daysMerge$nname, levels = c('P1','N1','F1','F2'))
+  daysMerge$nname <- ifelse(daysMerge$siteID %in% 'DC', 'P1',
+                            ifelse(daysMerge$siteID %in% 'BC', 'P2',
+                                   ifelse(daysMerge$siteID %in% 'LM','P3','Fe1')))
+  daysMerge$nname <- factor(daysMerge$nname, levels = c('Fe1','P1','P2','P3'))
   
   daysMerge[,-c('dist_intended')]
     
@@ -110,14 +110,14 @@ plot.mod1
 
 
 #### 2. Add a fixed effect for AC site
-##### (DC = Drift Creek, MC = Miller Creek, UG = Upper Greenleaf, WC = Waite Creek)
+##### (CC = Cummins Creek, DC = Drift Creek, BC = Baker Creek, LM = Limpy Mountain)
 
 ```{r}
 
 mod2 <- glm(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) ~ siteID + Distance,
              data = daysMerge, family = quasibinomial(link = 'logit'))
 summary(mod2)
-plot(allEffects(mod2))
+# plot(allEffects(mod2))
 
 ```
 
@@ -162,11 +162,11 @@ plot:
 
 mod3f <- glm(cbind(nights_STOC_FEMALE, duration-nights_STOC_ANY) ~ Distance,
              data = daysMerge, family = quasibinomial(link = 'logit'))
-summary(mod3f)
+# summary(mod3f)
 
 mod3m <- glm(cbind(nights_STOC_MALE, duration-nights_STOC_ANY) ~ Distance,
              data = daysMerge, family = quasibinomial(link = 'logit'))
-summary(mod3m)
+# summary(mod3m)
 
 ```
 
@@ -174,7 +174,7 @@ plot:
 
 ```{r echo=FALSE}
 #make long DF first
-daysMergeLong <- melt(daysMerge, id.vars = c('SITESTN','duration','reproState','Distance','dist_intended',
+daysMergeLong <- melt(daysMerge, id.vars = c('SITE_STN','duration','reproState','Distance','dist_intended',
                                              'siteID','nname'),
                       value.name = 'n')
 daysMergeLong$sex <- ifelse(daysMergeLong$variable %in% 'nights_STOC_FEMALE', 'Female',
@@ -227,19 +227,19 @@ plot.mod3
 
 
 #### 4. Add a fixed effect for AC site (separately for F/M)
-##### (DC = Drift Creek, MC = Miller Creek, UG = Upper Greenleaf, WC = Waite Creek)
+##### (CC = Cummins Creek, DC = Drift Creek, BC = Baker Creek, LM = Limpy Mountain)
 
 ```{r}
 
 mod4f <- glm(cbind(nights_STOC_FEMALE, duration - nights_STOC_FEMALE) ~ siteID + Distance,
              data = daysMerge, family = quasibinomial(link = 'logit'))
 summary(mod4f)
-plot(allEffects(mod4f))
+# plot(allEffects(mod4f))
 
 mod4m <- glm(cbind(nights_STOC_MALE, duration - nights_STOC_MALE) ~ siteID + Distance,
              data = daysMerge, family = quasibinomial(link = 'logit'))
 summary(mod4m)
-plot(allEffects(mod4m))
+# plot(allEffects(mod4m))
 
 ```
 
@@ -263,7 +263,6 @@ plot.mod4 <- ggplot(daysMergeLong, aes(x = Distance/1000, y = n/duration,
   facet_grid(~nname) +
   scale_color_manual(values = c('tomato','dodgerblue1')) +
   scale_fill_manual(values = c('tomato','dodgerblue1')) +
-
   # geom_rug(sides = 'b', lwd = 1) +
   # geom_rug(data = daysMergeLong[daysMergeLong$variable %in% 'nights_STOC_MALE' &
   #                                 daysMergeLong$n > 0], color = 'cyan4', sides = "b", outside = TRUE) +
@@ -299,7 +298,7 @@ plot.mod4
 mod5 <- glm(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) ~ reproState,
              data = daysMerge, family = quasibinomial(link = 'logit'))
 summary(mod5)
-plot(allEffects(mod5))
+# plot(allEffects(mod5))
 
 mod5f <- glm(cbind(nights_STOC_FEMALE, duration - nights_STOC_FEMALE) ~ reproState,
              data = daysMerge, family = quasibinomial(link = 'logit'))
@@ -326,13 +325,13 @@ plot:
   fm.repro.prop <- rbind(df.f.repro, df.m.repro)
   
   fm.repro.prop$reproState <- factor(fm.repro.prop$reproState,
-                                    levels = c('pair','nest','fledged'))
+                                    levels = c('female','pair'))
 
   #and plot
   plot.mod5.mf <- ggplot(fm.repro.prop, aes(x = reproState, y = fit)) + 
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = lower, ymax = upper)) +
-      # ylim(c(0,1)) +
+      ylim(c(0,1)) +
       ylab('Probability') +
       facet_grid(~sex) +
       # scale_color_manual(values = c('tomato1', 'steelblue2', 'seagreen')) +
@@ -357,13 +356,13 @@ plot:
   df.repro <- allEffects(mod5)
   df.repro <- data.frame(df.repro$reproState)
   
-  df.repro$reproState <- factor(df.repro$reproState, levels = c('pair','nest','fledged'))
+  df.repro$reproState <- factor(df.repro$reproState, levels = c('female','pair'))
   
   #and plot
   plot.mod5 <- ggplot(df.repro, aes(x = reproState, y = fit)) + 
       geom_point(size = 3) +
       geom_errorbar(aes(ymin = lower, ymax = upper)) +
-      # ylim(c(0,1)) +
+      ylim(c(0,1)) +
       ylab('Probability') +
       # scale_color_manual(values = c('tomato1', 'steelblue2', 'seagreen')) +
       # ggtitle('Spotted owl detections by reproductive state') +
@@ -387,7 +386,7 @@ plot:
 
 
 ################## 
-#### 3. Add a random effect for AC site
+#### 3. Add a *random* effect for AC site
 ##### (But can't do 'quasi' family in lmer so this is jut Binomial)
 ##### -- can adjust later
 
@@ -398,11 +397,11 @@ daysMerge$distScaled <- scale(daysMerge$Distance)
   # hist(daysMerge$Distance)  
   # hist(daysMerge$distScaled)
 
-mod5 <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) ~ (1|siteID) + distScaled,
+mod6 <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) ~ (1|siteID) + distScaled,
              data = daysMerge, family = binomial(link = 'logit'))
 
-summary(mod5)
-plot(allEffects(mod5))
+summary(mod6)
+# plot(allEffects(mod6))
 
 ```
 

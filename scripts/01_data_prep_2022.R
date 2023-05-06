@@ -1,6 +1,7 @@
 ## Data prep for 2022 AC "big grid" data
 
 library(data.table)
+library(lubridate)
 library(ggplot2)
 
 
@@ -165,7 +166,7 @@ library(ggplot2)
   write.csv(ac22stocRes, 'output/02_ac_STOC_2022_residents.csv') #latest save 04/07/23
   write.csv(ac22agg, 'output/03_ac_STOC_2022_aggregated.csv')   #latest save 04/07/23
   
-  #2022 has no surveys so I won't have an '03_..._noSurveys' dataframe
+  #2022 has no surveys to remove so I won't have an '03_..._noSurveys' dataframe
   
   
 ################################################################################  
@@ -236,7 +237,7 @@ library(ggplot2)
   dist_lm <- fread('2022/distances/limpy_mtn_2022_distances.csv',
                    select = c('ac_st','utmx_new','utmy_new','Distance')); dist_lm$site <- 'lm'
   
-  #combine and add column for matching
+  #combine and add 'SITE_STN' column for matching
   distances <- rbind(dist_dc, dist_cc); distances <- rbind(distances, dist_bc); distances <- rbind(distances, dist_lm)
   distances$stn <- sapply(strsplit(as.character(distances$ac_st), '\\-'), '[', 2)
   distances$SITE_STN <- paste(toupper(distances$site), 
@@ -247,10 +248,10 @@ library(ggplot2)
                           by = c('SITE_STN'), all = TRUE)
   
     nrow(ac22merge) ; length(unique(ac22merge$SITE_STN)) #146 rows, 146 unique sites
-    nrow(distances) ; length(unique(distances$SITE_STN)) #145 rows, 146 unique sites 
+    nrow(distances) ; length(unique(distances$SITE_STN)) #146 rows, 146 unique sites 
     nrow(ac22merge_dist); length(unique(ac22merge_dist$SITE_STN)) #146 rows, 146 unique sites
     
-      ## I made some changes manually to the shapefiles to make them match above:
+      ## I made some edits manually to the 2022 shapefiles. Now they match:
         # - Changed name of LM_03 to LM_06 (there were 2 named LM_03 accidentally)
         # - Added CC_38 to shapefile using deployment/retrieval form and switched names of 20 and 38
             ## CC_38 was the original placement at CC_20; wasn't great but was left out the whole season (5/10/22 - 9/1/22)
