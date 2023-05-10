@@ -1,4 +1,6 @@
-## testing models with counts (see also 03_mkdown_models_counts.Rmd)
+## Testing models with count data (number of spotted owl detections as response variable)
+## Takeaway here is that if using counts, negative binomial is best
+## See '03b_mkdown_models_counts.Rmd' for evaluation of nb models
 
 library(data.table)
 library(broom)

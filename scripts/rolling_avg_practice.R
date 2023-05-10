@@ -1,4 +1,4 @@
-## trying out rolling average/proportion
+## trying out rolling average/proportion for plotting % nights with detections ... didn't end up using this
 
 library(runner)
 

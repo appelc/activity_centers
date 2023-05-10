@@ -1,5 +1,5 @@
 ---
-title: "Activity center models - days with detections (2022)"
+title: "Activity center models - days with detections (evaluation) - 2021"
 author: "Cara"
 date: "`r Sys.Date()`"
 output: 
@@ -28,25 +28,30 @@ library(ggeffects)
 
 ------------------------------------------------------------------------
 
-### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2022
+### Preliminary models for analyzing spotted owl activity center ("big grid") data from 2021
+###  
+#### Comparing ways to deal with overdispersion (quasibinomial, random effect, glmmTMB, etc.)
+#### **Decided to use quasi model with fixed effect and/or random effect for site moving forward**
 
 ------------------------------------------------------------------------
 
 #### Load data:
 
-##### 146 rows = 146 ARU stations from 4 different study areas
+##### 145 rows = 145 ARU stations from 4 different study areas
 
 ```{r echo=FALSE}
   #import nDays summary
-  daysSTOC <- fread('../output/09_ac_22_nights_with_det.csv')
+  daysSTOC <- fread('../output/09_ac_21_nights_with_det.csv')
 
-  #import station summary (w/ duration, distance, etc.)
-  acData <- fread('../output/05_ac_2022_merged.csv')
+  #import station summary
+  acData <- fread('../output/05_ac_2021_merged.csv')
   
   #merge some columns and order level
-  daysMerge <- merge(daysSTOC[,-c('V1')], acData[,c('SITE_STN','reproState','Distance')]) #include 'dist_intended'?
-  daysMerge$reproState <- factor(daysMerge$reproState, levels = c('female','pair'))
+  daysMerge <- merge(daysSTOC[,-c('V1')], acData[,c('SITESTN','reproState','Distance','dist_intended')])
+  daysMerge$reproState <- factor(daysMerge$reproState, levels = c('pair','nest','fledged'))
 
+  daysMerge[,-c('dist_intended')]
+    
 ```
 
 ------------------------------------------------------------------------
@@ -111,18 +116,18 @@ That has more realistic uncertainty.
 ```{r}
 #null model
 mod3.null <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
-                   ~ 1 + (1|SITE_STN), family = binomial(link = 'logit'), data = daysMerge)
+                   ~ 1 + (1|SITESTN), family = binomial(link = 'logit'), data = daysMerge)
 summary(mod3.null)
 
 #reproductive state
 mod3.repro <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
-                    ~ reproState + (1|SITE_STN), 
+                    ~ reproState + (1|SITESTN), 
                     family = binomial(link = 'logit'), data = daysMerge)
 summary(mod3.repro)
 
 #distance
 mod3.dist <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
-                   ~ Distance + (1|SITE_STN),
+                   ~ Distance + (1|SITESTN),
                     family = binomial(link = 'logit'), data = daysMerge)
 ```
 
@@ -135,13 +140,13 @@ daysMerge$distScaled <- scale(daysMerge$Distance)
   
 #distance (scaled)  
 mod3.dist.scaled <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
-                          ~ distScaled + (1|SITE_STN),
+                          ~ distScaled + (1|SITESTN),
                           family = binomial(link = 'logit'), data = daysMerge)
 
 #try with optimization
 # glmerControl(optimizer = 'Nelder_Mead')
 mod3.dist.nm <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
-                      ~ distScaled + (1|SITE_STN),
+                      ~ distScaled + (1|SITESTN),
                       family = binomial(link = 'logit'), data = daysMerge)
 summary(mod3.dist.nm)
 
@@ -154,11 +159,11 @@ Still having convergence issues. Try REML... but can't specify in glmer, and can
 ```{r}
 
 mod3.dist.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
-                         ~ Distance + (1|SITE_STN), data = daysMerge, 
+                         ~ Distance + (1|SITESTN), data = daysMerge, 
                          family = binomial(link = 'logit')) 
 
 mod3.dist.tmb.reml <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
-                              ~ Distance + (1|SITE_STN), data = daysMerge, 
+                              ~ Distance + (1|SITESTN), data = daysMerge, 
                               family = binomial(link = 'logit'), REML = TRUE) 
 
 #works both with and without REML now (good, but why?)
@@ -249,7 +254,7 @@ predsRE <- ggpredict(mod3.dist.tmb, terms = 'Distance', type = 're', back.transf
 ```{r}
 
 mod3.repro.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
-                          ~ reproState + (1|SITE_STN), data = daysMerge, 
+                          ~ reproState + (1|SITESTN), data = daysMerge, 
                           family = binomial(link = 'logit')) 
 summary(mod3.repro.tmb)
 
@@ -295,7 +300,7 @@ What's up with error bars here? And why are the estimates this low?
 
 ```{r}
 mod3.repro.dist.tmb <- glmmTMB(cbind(nights_STOC_ANY, duration - nights_STOC_ANY)
-                              ~ reproState * Distance + (1|SITE_STN), data = daysMerge, 
+                              ~ reproState * Distance + (1|SITESTN), data = daysMerge, 
                               family = binomial(link = 'logit')) 
 summary(mod3.repro.dist.tmb)
 ```

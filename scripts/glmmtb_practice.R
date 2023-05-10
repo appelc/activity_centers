@@ -15,14 +15,14 @@ fit_zipoiss <- glmmadmb(NCalls~(FoodTreatment+ArrivalTime)*SexParent+
                           family="poisson")
 
 
-====
+#====
   
   mod3.repro <- glmer(cbind(nights_STOC_ANY, duration - nights_STOC_ANY) 
                       ~ reproState + (1|SITESTN), 
                       family = binomial, data = daysMerge)
   summary(mod3.repro)
 
-=======
+#=======
     
   install.packages("glmmTMB", repos="https://glmmTMB.github.io/glmmTMB/repos")
     library(glmmTMB)

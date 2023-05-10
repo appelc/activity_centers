@@ -272,7 +272,7 @@ library(kableExtra)
 
   any.repro.dist.glm <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = anyStocBern, family = binomial)
 
-    sumary(any.repro.dist.glm) #overdispersed, use quasibinomial
+    summary(any.repro.dist.glm) #overdispersed, use quasibinomial
 
   any.repro.dist.glm.quasi <- glm(cbind(Yes, No) ~ reproState * dist_intended, data = anyStocBern, 
                                   family = quasibinomial)

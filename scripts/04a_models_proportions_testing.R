@@ -1,4 +1,6 @@
-## binomial/bernoulli models (see also 03_mkdown_models)
+## Testing models with proportion data (% nights with spotted owl detections as response variable)
+## Comparing different ways of formatting data (binomial/Bernoulli)
+## See '04b_' for more evaluation of binomial and quasibinomial models
 
 library(data.table)
 library(broom)
