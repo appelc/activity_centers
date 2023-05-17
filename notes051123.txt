@@ -1,0 +1,56 @@
+Meeting with Julie re: activity center data
+------
+
+Takeaways:
+- good to try % weeks with detections
+- for females and males separately, use only 4NLC
+- for all detections together, OK to use all call types
+- need a plot to account for effort thru season somehow
+- also plot detections at each site thru season to see how it moves and which sites drop off w/ effort
+
+Other data:
+- 2020 COA AC: several sites had 5 ARUs at activity centers (1 at center, 4 in each cardinal direction 500m away)
+	- this could help refine calling between 0-1 km!
+- 2019 COA AC: several sites had 1 ARU only at activity center
+- 2018-2022 OLY AC: several sites had 1 ARU only at activity center
+
+- Barred owl data: I haven't incorporated this up yet (ask Julie for help)
+- Nesting/roosting map (ask Ray/Julie)
+
+Covariates:
+- Habitat (0/1 is it in nesting-roosting at high threshold)
+- Effort (recording time)
+- Noise
+- Nesting attempt (0/1, where Fe/Pair = 0, Nesting/Fledged = 1)
+- Barred owls: model-adjusted predicted number of detections
+
+Response variables for GLMs:
+- proportion of weeks with detections
+- proportion of days with detection
+- other...?
+
+Models:
+- GLM
+	% weeks with detection (all calls) ~ Distance + Habitat (0/1) + Site
+	% weeks with detection (Female 4NLC) ~ Distance + Habitat (0/1) + Individual
+	% weeks with detection (Male 4NLC) ~ Distance + Habitat (0/1) + Individual
+
+- Occupancy
+	psi(Distance + Site + Nesting attempt + Barred owl) p(Distance + Nesting attempt + Noise + Effort)
+		*Site and Nesting attempt redundant here?
+		*Try with time-varying 'p' to see whether changes thru the season
+		*Multistate? 
+Sss
+
+-----
+Schedule meeting with Damon, Taal, Julie
+- My models
+- What is planned
+
+Priorities:
+1. Redo GLMMs with %weeks with detections instead of %nights -- combining '21 and '22 into one analysis
+2. Make sure all detections are any calls but F and M separately are just FNLC
+3. Get covariates for occupancy and write out models --- can we do multistate?
+
+
+

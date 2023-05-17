@@ -76,7 +76,7 @@ library(tidyverse)
     table(dh_weeks$week_staggered, useNA = 'always') #good, no NAs
 
     #save week date key
-    # write.csv(rangeDFwks, 'output/08_weekly_dates_staggered.csv')
+    # write.csv(rangeDFwks, 'output/08_weekly_dates_staggered_2022.csv')
 
             
 ## Aggregate detections by night -----------------------------------------------

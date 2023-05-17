@@ -52,7 +52,7 @@ how many sites/rows (out of 145) have detections of STOC
 		0	pair	M	1
 		0	nest	F	1	
 		0	nest	M	1	
-		0	fledg	F	2	(2 here means this many 
+		0	fledg	F	2	(2 here means this many ...
 		0	fledg	M	2	
 		1000	pair	F	...		
 					

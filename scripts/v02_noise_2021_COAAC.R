@@ -15,7 +15,7 @@ library(reshape2)
 #Julie's path:
 # files2021 <- list.files(path = "C:\\Users\\juliannajenkins\\USDA\\PNW BIOACOUSTICS LAB - Tagging Help/2021_Noise_Analysis", pattern = 'noisebyfile.csv|splbyfile.csv', recursive = TRUE, full.names = TRUE)
 #Cara's path:
-files22 <- list.files(path = 'E:/Activity_centers/AC_2022_NOISE_ANALYSIS', pattern = 'noisebyfile.csv|splbyfile.csv', recursive = TRUE, full.names = TRUE)
+files22 <- list.files(path = '2022/AC_2022_NOISE_ANALYSIS', pattern = 'noisebyfile.csv|splbyfile.csv', recursive = TRUE, full.names = TRUE)
   length(files22)
   mylist <- lapply(files22, fread)
   
@@ -86,7 +86,7 @@ head(Daily_noise_22)
 # saveRDS(Daily_noise,"data_work/noise_2021_COA_AC.rds")
 # saveRDS(Daily_noise,"C:\\Users\\juliannajenkins\\USDA\\PNW BIOACOUSTICS LAB - Tagging Help/COA_AC_julieWork/noise_2021_COA_AC.rds")
 
-  saveRDS(Daily_noise_22, 'output/10_ac_22_dailyNoise.rds')
+  saveRDS(Daily_noise_22, '2022/ac_22_dailyNoise.rds')
 
   
 ## SUMMARIZE
