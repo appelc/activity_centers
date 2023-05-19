@@ -22,8 +22,27 @@ library(reshape2)
                           class = 'data.frame')    
 
 
-## Load and format detection histories -----------------------------------------
-  # dh_any_21_left <- fread('output/08_weekly_dethist_left/08_dh_ac_2021_stocAny_left.csv'); dh_any_21_left <- dh_any_21_left[,-'V1']
+
+  
+## Load covariates -------------------------------------------------------------
+  
+  ## Site-level
+  site_covars <- readRDS('output/10_occ_covariates/10_site_covariates.rds')
+    site_covars21 <- site_covars$`2021`
+    site_covars22 <- site_covars$`2022`
+  
+    #also need Barred owls and NR habitat  
+      
+  ## Survey-level
+  effort21 <- fread('output/10_occ_covariates/10_effort_weekly_std_2021.csv', header = TRUE)
+  effort22 <- fread('output/10_occ_covariates/10_effort_weekly_std_2022.csv', header = TRUE)
+  
+  noise21 <- fread('output/10_occ_covariates/10_noise_weekly_std_2021.csv', header = TRUE)
+  noise22 <- fread('output/10_occ_covariates/10_noise_weekly_std_2022.csv', header = TRUE)  
+
+
+## Input detection histories ---------------------------------------------------  
+   # dh_any_21_left <- fread('output/08_weekly_dethist_left/08_dh_ac_2021_stocAny_left.csv'); dh_any_21_left <- dh_any_21_left[,-'V1']
   dh_any_21_stag <- fread('output/08_weekly_dethist_staggered/08_dh_ac_2021_stocAny_staggered.csv')
   dh_any_22_stag <- fread('output/08_weekly_dethist_staggered/08_dh_ac_2022_stocAny_staggered.csv')
   
@@ -40,26 +59,18 @@ library(reshape2)
   dh_any_21[dh_any_21 > 0] <- 1
   dh_any_22[dh_any_22 > 0] <- 1
   
-  
-## Load covariates -------------------------------------------------------------
-  
-  #site-level
-  site_covars <- readRDS('output/10_occ_covariates/10_site_covariates.rds')
-    site_covars21 <- site_covars$`2021`
-    site_covars22 <- site_covars$`2022`
     
-  #survey-level
-  
-  
 ## Create input files ----------------------------------------------------------    
   
   dim(dh_any_21)
   dim(dh_any_22)
   
   input21 <- unmarkedFrameOccu(y = dh_any_21, 
-                               siteCovs = site_covars21[,c('duration_std','dist_actual_std','site_name','nested')])
+                               siteCovs = site_covars21[,c('duration_std','dist_actual_std','site_name','nested'),],
+                               obsCovs = list(effort = effort21[,-c('V1','site_name')], 
+                                              noise = noise21[,-c('V1','site_name')]))
     str(input21)
-    plot(input21) #optionally panels = 4 e.g., to split up y-axis
+    plot(input21) #optionally 'panels = 4' e.g., to split up y-axis
     summary(input21) #this is useful; gives naive occupancy, mean number of obs per site, etc.
     
   input22 <- unmarkedFrameOccu(y = dh_any_22)

@@ -47,10 +47,17 @@ library(tidyverse)
     head(site21[,c('site_stn','repro_state','site_name','duration_std','dist_intended_std','dist_actual_std')])
     head(site22[,c('site_stn','repro_state','site_name','duration_std','dist_intended_std','dist_actual_std')])
     
-  #combine and save
-    site_level_covar <- list(site21,site22)
-    saveRDS(site_level_covar, 'output/10_occ_covariates/10_site_covariates.rds')
- 
+  #combine both years
+    site21$year <- '2021'; site22$year <- '2022'
+    sites_21_22 <- rbind(site21, site22)
+    
+  #save
+    # site_level_covar <- list(site21,site22)
+    # saveRDS(site_level_covar, 'output/10_occ_covariates/10_site_covariates.rds')
+    write.csv(site21, 'output/10_occ_covariates/10_site_level_2021.csv')
+    write.csv(site22, 'output/10_occ_covariates/10_site_level_2022.csv')
+    write.csv(sites_21_22, 'output/10_occ_covariates/10_site_level_2021-2022.csv')
+
     
 ## Barred owls -----------------------------------------------------------------
     
@@ -62,13 +69,13 @@ library(tidyverse)
   
 ## SURVEY-LEVEL ----------------------------------------------------------------
 
-## Noise (mean daily SPL) ------------------------------------------------------
+## Noise (mean daily SPL) -- staggered for years separately --------------------
   noise21 <- readRDS('2021/COA_AC_Work/from_Julie/Codes/noise_2021_COA_AC.rds')
   noise22 <- readRDS('2022/ac_22_dailyNoise.rds')
     head(noise21)
     head(noise22)
     
-  #load in week dates and match them up
+  #load in week dates and match them up (staggered)
   dates21 <- fread('output/08_weekly_dates_staggered_2021.csv')    
   dates22 <- fread('output/08_weekly_dates_staggered_2022.csv')
 
@@ -128,20 +135,73 @@ library(tidyverse)
   noise22_wk_wide_std <- noise22_wk_wide_std[order(noise22_wk_wide_std$site_name),] 
   
   #save
-  write.csv(noise21_dy_wide,     'output/10_occ_covariates/10_noise_daily_raw_2021.csv')
-  write.csv(noise21_dy_wide_std, 'output/10_occ_covariates/10_noise_daily_std_2021.csv')
+  # write.csv(noise21_dy_wide,     'output/10_occ_covariates/10_noise_daily_raw_2021.csv')
+  # write.csv(noise21_dy_wide_std, 'output/10_occ_covariates/10_noise_daily_std_2021.csv')
+  # 
+  # write.csv(noise22_dy_wide,     'output/10_occ_covariates/10_noise_daily_raw_2022.csv')
+  # write.csv(noise22_dy_wide_std, 'output/10_occ_covariates/10_noise_daily_std_2022.csv')
+  # 
+  # write.csv(noise21_wk_wide,     'output/10_occ_covariates/10_noise_weekly_raw_2021.csv')
+  # write.csv(noise21_wk_wide_std, 'output/10_occ_covariates/10_noise_weekly_std_2021.csv')
+  # 
+  # write.csv(noise22_wk_wide,     'output/10_occ_covariates/10_noise_weekly_raw_2022.csv')
+  # write.csv(noise22_wk_wide_std, 'output/10_occ_covariates/10_noise_weekly_std_2022.csv')
   
-  write.csv(noise22_dy_wide,     'output/10_occ_covariates/10_noise_daily_raw_2022.csv')
-  write.csv(noise22_dy_wide_std, 'output/10_occ_covariates/10_noise_daily_std_2022.csv')
   
-  write.csv(noise21_wk_wide,     'output/10_occ_covariates/10_noise_weekly_raw_2021.csv')
-  write.csv(noise21_wk_wide_std, 'output/10_occ_covariates/10_noise_weekly_std_2021.csv')
+## Noise (mean daily SPL) -- left-justified for both years combined ---------------
+    head(noise21)
+    head(noise22)
   
-  write.csv(noise22_wk_wide,     'output/10_occ_covariates/10_noise_weekly_raw_2022.csv')
-  write.csv(noise22_wk_wide_std, 'output/10_occ_covariates/10_noise_weekly_std_2022.csv')
+  #load in week dates and match them up (left-justified)
+  dates21_left <- fread('output/07_ac_21_dethist_long.csv'); colnames(dates21_left)[c(2:3,8)] <- c('site_name', 'DATE2','week_left')
+  dates22_left <- fread('output/07_ac_22_dethist_long.csv'); colnames(dates22_left)[2:3] <- c('site_name', 'DATE2')
+  
+  noise21 <- merge(noise21, dates21_left[,c('site_name','DATE2','week_left')], by = c('site_name','DATE2'), all.x = TRUE)
+  noise22 <- merge(noise22, dates22_left[,c('site_name','DATE2','week_left')], by = c('site_name','DATE2'), all.x = TRUE)
+    
+  #convert weeks to integers so they sort correctly
+  noise21$week_left <- as.integer(noise21$week_left)
+  noise22$week_left <- as.integer(noise22$week_left)
+  
+  #summarize 'mnSPL' by week (left)
+  noise21_wk_left <- group_by(noise21, week_left, site_name) %>% summarise(meanSPL = mean(mnSPL))
+  noise22_wk_left <- group_by(noise22, week_left, site_name) %>% summarise(meanSPL = mean(mnSPL))
+  
+  #standardize weekly 'mnSPL *or should we summarize the standardized daily meanSPL...?*
+  noise21_wk_left$meanSPL_std <- scale(noise21_wk_left$meanSPL)
+  noise22_wk_left$meanSPL_std <- scale(noise22_wk_left$meanSPL)
+  
+  #convert to wide (weekly)
+  noise21_wk_left_wide     <- pivot_wider(noise21_wk_left, id_cols = site_name, names_from = week_left, values_from = meanSPL) 
+  noise21_wk_left_wide_std <- pivot_wider(noise21_wk_left, id_cols = site_name, names_from = week_left, values_from = meanSPL_std) 
+  
+  noise22_wk_left_wide     <- pivot_wider(noise22_wk_left, id_cols = site_name, names_from = week_left, values_from = meanSPL)
+  noise22_wk_left_wide_std <- pivot_wider(noise22_wk_left, id_cols = site_name, names_from = week_left, values_from = meanSPL_std)
+  
+  #sort by site name
+  noise21_wk_left_wide     <- noise21_wk_left_wide[order(noise21_wk_left_wide$site_name),] 
+  noise21_wk_left_wide_std <- noise21_wk_left_wide_std[order(noise21_wk_left_wide_std$site_name),] 
+  
+  noise22_wk_left_wide     <- noise22_wk_left_wide[order(noise22_wk_left_wide$site_name),] 
+  noise22_wk_left_wide_std <- noise22_wk_left_wide_std[order(noise22_wk_left_wide_std$site_name),] 
+  
+  #combine years together
+  #daily
+    ##hmm... I will need to left-justify days if I really want to do this  
+  
+  #weekly (left)
+  noise21_wk_left_wide$year <- '2021'; noise22_wk_left_wide$year <- '2022'
+  noise21_wk_left_wide_std$year <- '2021'; noise22_wk_left_wide_std$year <- '2022'
+  
+  noise_weekly_combined_raw <- bind_rows(noise21_wk_left_wide, noise22_wk_left_wide)
+  noise_weekly_combined_std <- bind_rows(noise21_wk_left_wide_std, noise22_wk_left_wide_std)
+  
+  #save
+  write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
+  write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
   
   
-## Effort (recording seconds) --------------------------------------------------
+## Effort (recording seconds) -- staggered for years separately ----------------
   head(noise21)
   head(noise22)   #use 'durS' from this
   
@@ -185,15 +245,56 @@ library(tidyverse)
   effort22_wk_wide_std <- effort22_wk_wide_std[order(effort22_wk_wide_std$site_name),] 
   
   #save
-  write.csv(effort21_dy_wide,     'output/10_occ_covariates/10_effort_daily_raw_2021.csv')
-  write.csv(effort21_dy_wide_std, 'output/10_occ_covariates/10_effort_daily_std_2021.csv')
+  # write.csv(effort21_dy_wide,     'output/10_occ_covariates/10_effort_daily_raw_2021.csv')
+  # write.csv(effort21_dy_wide_std, 'output/10_occ_covariates/10_effort_daily_std_2021.csv')
+  # 
+  # write.csv(effort22_dy_wide,     'output/10_occ_covariates/10_effort_daily_raw_2022.csv')
+  # write.csv(effort22_dy_wide_std, 'output/10_occ_covariates/10_effort_daily_std_2022.csv')
+  # 
+  # write.csv(effort21_wk_wide,     'output/10_occ_covariates/10_effort_weekly_raw_2021.csv')
+  # write.csv(effort21_wk_wide_std, 'output/10_occ_covariates/10_effort_weekly_std_2021.csv')
+  # 
+  # write.csv(effort22_wk_wide,     'output/10_occ_covariates/10_effort_weekly_raw_2022.csv')
+  # write.csv(effort22_wk_wide_std, 'output/10_occ_covariates/10_effort_weekly_std_2022.csv')
+   
+   
+## Effort (recording seconds) -- left-justified for both years combined ---------------
+  head(effort21)
+  head(effort22) #already have week_left column (as integer)
+
+  #summarize 'durS' by week_left
+  effort21_wk_left <- group_by(effort21, week_left, site_name) %>% summarise(totalS = sum(durS))
+  effort22_wk_left <- group_by(effort22, week_left, site_name) %>% summarise(totalS = sum(durS))
   
-  write.csv(effort22_dy_wide,     'output/10_occ_covariates/10_effort_daily_raw_2022.csv')
-  write.csv(effort22_dy_wide_std, 'output/10_occ_covariates/10_effort_daily_std_2022.csv')
+  #standardize weekly 'durS' 
+  effort21_wk_left$totalS_std <- scale(effort21_wk_left$totalS)
+  effort22_wk_left$totalS_std <- scale(effort22_wk_left$totalS)
   
-  write.csv(effort21_wk_wide,     'output/10_occ_covariates/10_effort_weekly_raw_2021.csv')
-  write.csv(effort21_wk_wide_std, 'output/10_occ_covariates/10_effort_weekly_std_2021.csv')
+  #convert to wide (weekly)
+  effort21_wk_left_wide     <- pivot_wider(effort21_wk_left, id_cols = site_name, names_from = week_left, values_from = totalS)
+  effort21_wk_left_wide_std <- pivot_wider(effort21_wk_left, id_cols = site_name, names_from = week_left, values_from = totalS_std)
   
-  write.csv(effort22_wk_wide,     'output/10_occ_covariates/10_effort_weekly_raw_2022.csv')
-  write.csv(effort22_wk_wide_std, 'output/10_occ_covariates/10_effort_weekly_std_2022.csv')
-    
+  effort22_wk_left_wide     <- pivot_wider(effort22_wk_left, id_cols = site_name, names_from = week_left, values_from = totalS)
+  effort22_wk_left_wide_std <- pivot_wider(effort22_wk_left, id_cols = site_name, names_from = week_left, values_from = totalS_std)
+  
+  #sort by site name
+  effort21_wk_left_wide     <- effort21_wk_left_wide[order(effort21_wk_left_wide$site_name),]  
+  effort21_wk_left_wide_std <- effort21_wk_left_wide_std[order(effort21_wk_left_wide_std$site_name),]  
+  
+  effort22_wk_left_wide     <- effort22_wk_left_wide[order(effort22_wk_left_wide$site_name),]
+  effort22_wk_left_wide_std <- effort22_wk_left_wide_std[order(effort22_wk_left_wide_std$site_name),]
+  
+  #combine years together
+  effort21_wk_left_wide$year <- '2021'; effort22_wk_left_wide$year <- '2022'
+  effort21_wk_left_wide_std$year <- '2021'; effort22_wk_left_wide_std$year <- '2022'
+  
+  effort_weekly_combined_raw <- bind_rows(effort21_wk_left_wide, effort22_wk_left_wide)
+  effort_weekly_combined_std <- bind_rows(effort21_wk_left_wide_std, effort22_wk_left_wide_std)
+  
+  #save
+  write.csv(effort_weekly_combined_raw, 'output/10_occ_covariates/10_effort_weekly_raw_21-22.csv')
+  write.csv(effort_weekly_combined_std, 'output/10_occ_covariates/10_effort_weekly_std_21-22.csv')
+  
+  write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
+  write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
+  

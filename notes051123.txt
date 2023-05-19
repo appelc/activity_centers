@@ -40,7 +40,7 @@ Models:
 		*Site and Nesting attempt redundant here?
 		*Try with time-varying 'p' to see whether changes thru the season
 		*Multistate? 
-Sss
+
 
 -----
 Schedule meeting with Damon, Taal, Julie
