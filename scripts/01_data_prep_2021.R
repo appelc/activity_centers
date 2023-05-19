@@ -1,14 +1,18 @@
-## data prep for 2021 AC "big grid" data
+## Data prep for 2021 AC "big grid" data
 
 library(data.table)
+library(lubridate)
 library(ggplot2)
 
-## read in data from Chris M. ####
-  ac21 <- fread('COA_AC_Work/ac_STOC_2021.csv')
+
+## PART 1: DETECTION DATA ######################################################
+
+## Read in validation clip data from Chris M. ----------------------------------
+  ac21 <- fread('2021/COA_AC_Work/ac_STOC_2021.csv')
   head(ac21)  
   
-#  
-## explore some of the fields ####
+  
+## Explore some of the fields --------------------------------------------------
   
   #SPECIES
   table(ac21$SO, useNA = 'always')
@@ -59,34 +63,46 @@ library(ggplot2)
       #this one entry just has an extra (SO_U) tag in the FULL_ID field
       #go with the FULL_ID field
     
-      
     
-    
-    
-## do some cleaning ####
+## Clean up call types----------------------------------------------------------
 
-  ## extract all call types
-    tags <- unlist(sapply(strsplit(as.character(ac21$FULL_ID), '\\+'), '['))
+  #extract all call types
+  tags <- unlist(sapply(strsplit(as.character(ac21$FULL_ID), '\\+'), '['))
     sort(unique(tags))      ## view all the tags used
     
-    ac21$STOC_BARK <- ifelse(grepl('BARK', ac21$FULL_ID), 'Y','N')
-    ac21$STOC_WHIS <- ifelse(grepl('WHIS_SO', ac21$FULL_ID), 'Y','N')  #should match the WHIS_SP column
-    ac21$STOC_BEG  <- ifelse(grepl('BEG_SO', ac21$FULL_ID), 'Y','N')   #should match the BEG_SP column
-    # ac21$STOC_PAIR  <- ifelse(grepl('STOC_X2|ST0C_X2', ac21$FULL_ID), 'Y','N')
-    ac21$STOC_PAIR <- ifelse(grepl('(SO_MF)', ac21$FULL_ID), 'Y', 'N')  #go with Chris's tags instead of original STOC_X2
-    ac21$STOC_IRREG  <- ifelse(grepl('STOC_IRREG', ac21$FULL_ID), 'Y','N') #should match the PR column
-    ac21$STOC_4N <- ifelse(grepl('STOC\\+', ac21$FULL_ID), 'Y','N')
-  
-    ac21$STVA_IRREG <- ifelse(grepl('STVA_IRREG', ac21$FULL_ID), 'Y','N')
-    ac21$STVA_PAIR <- ifelse(grepl('STVA_X2', ac21$FULL_ID), 'Y','N')
-    ac21$STVA_BEG <- ifelse(grepl('BEG_SV', ac21$FULL_ID), 'Y','N')
-    ac21$STVA_INSP <- ifelse(grepl('INSP', ac21$FULL_ID), 'Y', 'N')
-    ac21$STVA_8N <- ifelse(grepl('STVA', ac21$FULL_ID),
-                           ifelse((ac21$STVA_IRREG %in% 'N' & ac21$STVA_PAIR %in% 'N' & ac21$STVA_BEG %in% 'N' & ac21$STVA_INSP %in% 'N'),
-                           'Y', 'N'), 'N')
-    
+  #create individual columns for the call types
+    ac21$STOC_BARK <- ifelse(grepl('BARK', ac21$FULL_ID), 1, 0)
+    ac21$STOC_WHIS <- ifelse(grepl('WHIS_SO', ac21$FULL_ID), 1, 0)  #should match the WHIS_SP column
+    ac21$STOC_BEG  <- ifelse(grepl('BEG_SO', ac21$FULL_ID), 1, 0)   #should match the BEG_SP column
+    ac21$STOC_PAIR <- ifelse(grepl('(SO_MF)', ac21$FULL_ID), 1, 0)  #go with Chris's tags instead of original STOC_X2
+    ac21$STOC_IRREG  <- ifelse(grepl('STOC_IRREG', ac21$FULL_ID), 1, 0) #should match the PR column
+    ac21$STOC_4N <- ifelse(grepl('STOC\\+', ac21$FULL_ID), 1, 0)
 
-  ## format datetime; get exact time from offset
+  #convert male/female columns to numeric (1/0)
+    ac21$MALE <- ifelse(ac21$M %in% 'x', 1,0)
+    ac21$FEMALE <- ifelse(ac21$F %in% 'x', 1,0)
+    ac21$UNK <- ifelse(ac21$U %in% 'x', 1,0)
+    ac21$JUV <- ifelse(ac21$JV %in% 'x', 1,0)  
+    
+  #differentiate 4-note location call (FNLC) and irregular for female, male
+    ac21$FEMALE_FNLC <- ifelse(ac21$FEMALE == 1 & ac21$STOC_4N == 1, 1, 0)
+    ac21$MALE_FNLC   <- ifelse(ac21$MALE == 1 & ac21$STOC_4N == 1, 1, 0)
+    
+  #also include detections of pairs
+    ac21$FEMALE_FNLC_OR_PAIR <- ifelse(ac21$FEMALE_FNLC == 1 | ac21$STOC_PAIR == 1, 1, 0)
+    ac21$MALE_FNLC_OR_PAIR <- ifelse(ac21$MALE_FNLC == 1 | ac21$STOC_PAIR == 1, 1, 0)
+    
+      #how do these look?
+      table(ac21$FEMALE)              #1531 clips with any F
+      table(ac21$FEMALE_FNLC_OR_PAIR) #1141 clips with F FNLC or pair
+      table(ac21$FEMALE_FNLC)         #683 clips with F FNLC
+      
+      table(ac21$MALE)              #5184 clips with any F
+      table(ac21$MALE_FNLC_OR_PAIR) #3292 clips with F FNLC or pair
+      table(ac21$MALE_FNLC)         #2834 clips with F FNLC
+      
+          
+## Format datetime; get exact time from offset ---------------------------------
     ac21$datetime <- paste(ac21$DATE, 
                            sapply(strsplit(as.character(sapply(strsplit(as.character(ac21$IN_FILE), '\\.'), '[', 1)), '\\_'), '[', 4), 
                            sep = ' ')
@@ -95,186 +111,149 @@ library(ggplot2)
     ac21$PART_N <- as.integer(sapply(strsplit(as.character(ac21$PART), '\\_'), '[', 2))
     ac21$timestamp <- ac21$datetime + (12 * (ac21$PART_N - 1)) #could also work with column 'MM_SS' and add that to datetime
     
+
+## Add SITE_STN column ---------------------------------------------------------
+    table(ac21$SRC, ac21$STN)
     
-  ## keep only authentic STOC
-    table(ac21$SO, useNA = 'always')
+    ac21$SITE_STN <- paste(toupper(substr(ac21$SRC, 1, 2)),
+                           formatC(ac21$STN, width = '2', format = 'd', flag = '0'), sep = '_')
+    
+    
+## Keep only authentic STOC ----------------------------------------------------
+    table(ac21$SO, useNA = 'always')  #68 'uncertain' ones to remove
     table(ac21$SRV, useNA = 'always') #8 clips had both SRV1 and authentic STOC. keep them
     
     ac21$REMOVE <- ifelse(ac21$SO %in% c('u','s'), 'y','n') #don't keep 'unknown' or 'survey'
+    ac21stoc <- ac21[ac21$REMOVE %in% 'n',]  #keep only authentic STOC    
     
       #look at tags in clips we are removing
       sort(unique(unlist(sapply(strsplit(as.character(ac21[ac21$REMOVE %in% 'y']$FULL_ID), '\\+'), '['))))
-      #note that we are removing some with STVA, STVA_IRREG, or INSP. these were predicted to be STOC by the CNN but were not.
-      #all we have here are clips predicted to be STOC, and some also have STVA, but we need the full list of STVA predictions
-      #  and validated tags to get those detections
-
-    ac21stoc <- ac21[ac21$REMOVE %in% 'n',]  #keep only authentic STOC
-    
     
   ## add 'any STOC' column  
-    ac21stoc$STOC_ANY <- 'Y'
+    ac21stoc$STOC_ANY <- 1
       table(ac21stoc$SO, useNA = 'always')  #should be all of them at this point; double check
       
-    ac21stoc$STVA_ANY <- ifelse((ac21stoc$STVA_8N %in% 'Y' | ac21stoc$STVA_IRREG %in% 'Y' | ac21stoc$STVA_BEG %in% 'Y' |
-                                  ac21stoc$STVA_PAIR %in% 'Y' | ac21stoc$STVA_INSP %in% 'Y'), 'Y', 'N')
     
-  ## save
-    # write.csv(ac21stoc, 'output/01_ac_STOC_2021_cleaned.csv') #latest save 01/19/23
-
-
-
-## clean up, remove non-residents, remove clips with nearby surveys ####
-    
-  # ac21stoc <- fread('output/ac_STOC_2021_cleaned.csv')  #if needed
-    
-  head(ac21stoc[,c('SITE','STN','timestamp','PR','M','F','U','JV','SV','NRES','SRV1MILE',
-                   'STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR','STOC_IRREG','STOC_4N',
-                   'STVA_IRREG','STVA_PAIR','STVA_BEG','STVA_8N', 'STOC_ANY','STVA_ANY')])
-
-  ## remove calls by non-residents
+## Keep only focal pair detections ---------------------------------------------
     table(ac21stoc$SITE, ac21stoc$NRES)  
     ac21stocRes <- ac21stoc[ac21stoc$NRES %in% '',] #keep target owl calls only
     
-  ## clean up fields
-    table(ac21stocRes$SITE, ac21stocRes$STN)
-    table(ac21stocRes$SITE)    
-    table(ac21stocRes$SRC) #what's the difference between dc1 and dc2, etc.?
-    
-    #add site_stn column
-      ac21stocRes$SITE_STN <- paste(ac21stocRes$SRC, formatC(ac21stocRes$STN, width = '2', format = 'd', flag = '0'),  #formatC to pad with leading zeroes
-                                    sep = '_')
-        table(ac21stocRes$SITE_STN, useNA = 'always')
-    
-    #convert Y/N columns to numeric (1/0)
-    ac21stocRes$STOC_BARK_N <- ifelse(ac21stocRes$STOC_BARK %in% 'Y',1,0)
-    ac21stocRes$STOC_WHIS_N <- ifelse(ac21stocRes$STOC_WHIS %in% 'Y',1,0)
-    ac21stocRes$STOC_BEG_N <- ifelse(ac21stocRes$STOC_BEG %in% 'Y',1,0)
-    ac21stocRes$STOC_PAIR_N <- ifelse(ac21stocRes$STOC_PAIR %in% 'Y',1,0)
-    ac21stocRes$STOC_IRREG_N <- ifelse(ac21stocRes$STOC_IRREG %in% 'Y',1,0)
-    ac21stocRes$STOC_4N_N <- ifelse(ac21stocRes$STOC_4N %in% 'Y',1,0)
-    ac21stocRes$STOC_ANY_N <- ifelse(ac21stocRes$STOC_ANY %in% 'Y',1,0)
+  
+## Remove detections within X distance of surveys ------------------------------
 
-    ac21stocRes$STVA_IRREG_N <- ifelse(ac21stocRes$STVA_IRREG %in% 'Y',1,0)
-    ac21stocRes$STVA_PAIR_N <- ifelse(ac21stocRes$STVA_PAIR %in% 'Y',1,0)    
-    ac21stocRes$STVA_BEG_N <- ifelse(ac21stocRes$STVA_BEG %in% 'Y',1,0)
-    ac21stocRes$STVA_INSP_N <- ifelse(ac21stocRes$STVA_INSP %in% 'Y',1,0)
-    ac21stocRes$STVA_8N_N <- ifelse(ac21stocRes$STVA_8N %in% 'Y',1,0)
-    ac21stocRes$STVA_ANY_N <- ifelse(ac21stocRes$STVA_ANY %in% 'Y',1,0)
-    
-    ac21stocRes$MALE_N <- ifelse(ac21stocRes$M %in% 'x', 1,0)
-    ac21stocRes$FEMALE_N <- ifelse(ac21stocRes$F %in% 'x', 1,0)
-    ac21stocRes$UNK_N <- ifelse(ac21stocRes$U %in% 'x', 1,0)
-    ac21stocRes$JUV_N <- ifelse(ac21stocRes$JV %in% 'x', 1,0)
-    
-    #save
-    # write.csv(ac21stocRes, 'output/02_ac_STOC_2021_residents.csv')  #last output 1/13/23
-    
-  ## remove detections within 1 mile of surveys  ***RETURN HERE TO MODIFY REMOVING DETECTIONS WITH SURVEYS WITHIN X DISTANCE**
+  ## WITHIN 1 MILE (CHANGE HERE IF NEEEDED)
     table(ac21stocRes$SRV1MILE, useNA = 'always')
     ac21stocResNosurv1m <- ac21stocRes[ac21stocRes$SRV1MILE %in% 'N',]  #removed 652 rows
     
-    #save
-    # write.csv(ac21stocResNosurv1m, 'output/03_ac_STOC_2021_noSurveys1mile.csv')
-  
 
-  
-## aggregate by site/stn ####
-    
-  # ac21stocResNosurv1m <- fread('output/03_ac_STOC_2021_noSurveys1mile.csv') #if needed
-    
-  ac21agg <- aggregate(ac21stocResNosurv1m[,c('STOC_BARK_N','STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N','STOC_IRREG_N','STOC_4N_N','STOC_ANY_N',
-                                      'STVA_IRREG_N','STVA_PAIR_N','STVA_BEG_N','STVA_INSP_N','STVA_8N_N','STVA_ANY_N',
-                                      'MALE_N','FEMALE_N','UNK_N','JUV_N')],
-                       by = list(as.factor(ac21stocResNosurv1m$SITE_STN)), 
-                       FUN = sum)
+## Aggregate by site/station ---------------------------------------------------
+  ac21agg <- aggregate(ac21stocResNosurv1m[,c('STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR',
+                                              'STOC_IRREG','STOC_4N','STOC_ANY','MALE','FEMALE',
+                                              'UNK','JUV','FEMALE_FNLC','MALE_FNLC',
+                                              'FEMALE_FNLC_OR_PAIR','MALE_FNLC_OR_PAIR')],
+                       by = list(as.factor(ac21stocResNosurv1m$SITE_STN)), FUN = sum)
   colnames(ac21agg)[1] <- 'SITE_STN'
-  ac21agg  #45 rows = 45 stations with STOC detections
+  dim(ac21agg)  #45 rows = 45 stations with STOC detections
 
     ## keep in mind these can sum to greater than the number of clips... e.g., a clip can have STOC_BEG and STOC_4N
     ## but the 'STOC_ANY_N' and 'STVA_ANY_N' columns are the total number of clips with any of these species
     ## (but all STOC columns do not add up to 'STOC_ANY', e.g.)
     
-  head(ac21agg[,c('SITE_STN','STOC_4N_N','STOC_ANY_N','STVA_8N_N','STVA_ANY_N')])
+  head(ac21agg[,c('SITE_STN','STOC_4N','STOC_ANY')])
       
-  #save
-    # write.csv(ac21agg, 'output/04_ac_STOC_2021_aggregated.csv')
     
-    
-## integrate stn-level data with Julie's outputs ####
-    
-  # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv')
+## Save ------------------------------------------------------------------------
   
-  #read in cleaned file from Julie  
-  ac21jj <- fread('COA_AC_Work/from_Julie/data_output/COAAC_2021_SampleSummary_fromNoise.csv')
+  write.csv(ac21stoc, 'output/01_ac_STOC_2021_cleaned.csv') #latest save 05/19/23 wtih FNLC separated 
+  write.csv(ac21stocRes, 'output/02_ac_STOC_2021_residents.csv')  #last output 1/13/23, 05/19/23 with FNLC separated
+  write.csv(ac21stocResNosurv1m, 'output/03_ac_STOC_2021_noSurveys1mile.csv') #latest output 05/19/23
+  write.csv(ac21agg, 'output/04_ac_STOC_2021_aggregated.csv')
+    
+
+################################################################################  
+
+## PART 2: EFFORT AND DISTANCE DATA ############################################
+    
+  # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv') #if necessary
+  
+  
+## Read in cleaned files from Julie --------------------------------------------  
+  ac21jj <- fread('2021/COA_AC_Work/from_Julie/data_output/COAAC_2021_SampleSummary_fromNoise.csv')
   head(ac21jj)    
 
-  #reformat columns to merge
-  ac21jj$SITESTN <- paste(substr(ac21jj$site, 5,6), sapply(strsplit(as.character(ac21jj$site), '\\-'),'[',2), sep = '_')
-  unique(ac21jj$SITESTN)    
-    
-  ac21agg$SITESTN <- paste(toupper(substr(ac21agg$SITE_STN, 1, 2)),
-                     substr(ac21agg$SITE_STN, 5, 6), sep = '_')
+  
+## Add SITE_STN column ---------------------------------------------------------
+  ac21jj$SITE_STN <- paste(substr(ac21jj$site, 5,6), sapply(strsplit(as.character(ac21jj$site), '\\-'),'[',2), sep = '_')
+    unique(ac21jj$SITE_STN)    
 
-  #format dates
+    
+## Format dates and add duration -----------------------------------------------
   ac21jj$start <- as.POSIXct(strptime(ac21jj$min_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
   ac21jj$stop <- as.POSIXct(strptime(ac21jj$max_date, format = '%Y-%m-%d'), tz = 'America/Los_Angeles')
-  ac21jj$duration <- difftime(ac21jj$stop, ac21jj$start) #nDays is unique days while duration is the difference
+  ac21jj$duration <- difftime(ac21jj$stop, ac21jj$start) 
+    #nDays is unique days while duration is the difference
   
-  #merge
-  ac21merge <- merge(ac21agg, ac21jj[,c('SITESTN','start','stop','duration')], by = c('SITESTN'), all = TRUE)
+  
+## Merge -----------------------------------------------------------------------
+  ac21merge <- merge(ac21agg, ac21jj[,c('SITE_STN','start','stop','duration')], 
+                     by = c('SITE_STN'), all = TRUE)
   head(ac21merge)    
   
   nrow(ac21agg)  
   nrow(ac21jj)
   nrow(ac21merge) #good, should be 145 rows (to match ac21jj): 37 stations * 4 sites (minus 3 at WC)
   
-  #get rid of extra columns
-  ac21merge_trim <- ac21merge[,c('SITESTN','start','stop','duration','STOC_ANY_N','STOC_4N_N','STOC_IRREG_N','STOC_BARK_N',
-                                 'STOC_WHIS_N','STOC_BEG_N','STOC_PAIR_N','FEMALE_N','MALE_N','UNK_N','JUV_N')]
-  head(ac21merge_trim)
   
-  #add repro status of each site
-  ac21merge_trim$reproState <- ifelse(grepl('DC', ac21merge_trim$SITESTN), 'fledged',
-                                      ifelse(grepl('MC', ac21merge_trim$SITESTN), 'nest',
-                                             ifelse(grepl('UG', ac21merge_trim$SITESTN), 'fledged', 'pair')))
+## Add repro status of each site -----------------------------------------------
+  ac21merge$reproState <- ifelse(grepl('DC', ac21merge$SITE_STN), 'fledged',
+                                 ifelse(grepl('MC', ac21merge$SITE_STN), 'nest',
+                                        ifelse(grepl('UG', ac21merge$SITE_STN), 'fledged', 'pair')))
   
   
-## add distances as measured in GIS ####
+## Add distances as measured in GIS --------------------------------------------
   
   #read in attribute tables from ArcGIS ('distance' field is the distance in m from center for each point)
-  dist_dc <- fread('COA_AC_Work/distances/drift_creek_2021_distances.csv', 
+  dist_dc <- fread('2021/COA_AC_Work/distances/drift_creek_2021_distances.csv', 
                    select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_dc$site <- 'DC'
-  dist_mc <- fread('COA_AC_Work/distances/miller_creek_2021_distances.csv',
+  dist_mc <- fread('2021/COA_AC_Work/distances/miller_creek_2021_distances.csv',
                    select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_mc$site <- 'MC'
-  dist_ug <- fread('COA_AC_Work/distances/upper_greenleaf_2021_distances.csv',
+  dist_ug <- fread('2021/COA_AC_Work/distances/upper_greenleaf_2021_distances.csv',
                    select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_ug$site <- 'UG'
-  dist_wc <- fread('COA_AC_Work/distances/waite_creek_2021_distances.csv',
+  dist_wc <- fread('2021/COA_AC_Work/distances/waite_creek_2021_distances.csv',
                    select = c('LOCNAME','YR','XNAD83FP','YNAD83FP','STATION','Distance')); dist_wc$site <- 'WC'
   
-  #combine and add column for matching
+  #combine and add 'SITE_STN'column for matching
   distances <- rbind(dist_dc, dist_mc); distances <- rbind(distances, dist_ug); distances <- rbind(distances, dist_wc)
-  distances$SITESTN <- paste(distances$site, formatC(distances$STATION, width = '2', format = 'd', flag = '0'), sep = '_')
+  distances$SITE_STN <- paste(distances$site, 
+                              formatC(distances$STATION, width = '2', format = 'd', flag = '0'), sep = '_')
   
   #merge with rest of the data
-  ac21merge_trim_dist <- merge(ac21merge_trim, distances[,c('SITESTN','Distance','XNAD83FP','YNAD83FP')], 
-                               by = c('SITESTN'), all = TRUE)
+  ac21merge_dist <- merge(ac21merge, distances[,c('SITE_STN','Distance','XNAD83FP','YNAD83FP')], 
+                          by = c('SITE_STN'), all = TRUE)
   
-  #add intended distance from center for each station (**but we probably want the actual distances above for models**)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_trim_dist$SITESTN), as.numeric(1000), NA)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_trim_dist$SITESTN), as.numeric(1732), ac21merge_trim_dist$dist_intended)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_trim_dist$SITESTN), as.numeric(2000), ac21merge_trim_dist$dist_intended)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_trim_dist$SITESTN), as.numeric(2646), ac21merge_trim_dist$dist_intended)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_trim_dist$SITESTN), as.numeric(3000), ac21merge_trim_dist$dist_intended)
-  ac21merge_trim_dist$dist_intended <- ifelse(grepl('19', ac21merge_trim_dist$SITESTN), as.numeric(0), ac21merge_trim_dist$dist_intended)
+    nrow(ac21merge) ; length(unique(ac21merge$SITE_STN)) #145 rows, 145 unique sites
+    nrow(distances) ; length(unique(distances$SITE_STN)) #145 rows, 145 unique sites
+    nrow(ac21merge_dist) ; length(unique(ac21merge_dist$SITE_STN)) #145 rows, 145 unique sites
 
-  table(ac21merge_trim_dist$dist_intended, useNA = 'always')
+    
+## Add intended distance from center for each station --------------------------
+  ac21merge_dist$dist_intended <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_dist$SITE_STN), as.numeric(1000), NA)
+  ac21merge_dist$dist_intended <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_dist$SITE_STN), as.numeric(1732), ac21merge_dist$dist_intended)
+  ac21merge_dist$dist_intended <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_dist$SITE_STN), as.numeric(2000), ac21merge_dist$dist_intended)
+  ac21merge_dist$dist_intended <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_dist$SITESTN), as.numeric(2646), ac21merge_dist$dist_intended)
+  ac21merge_dist$dist_intended <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_dist$SITE_STN), as.numeric(3000), ac21merge_dist$dist_intended)
+  ac21merge_dist$dist_intended <- ifelse(grepl('19', ac21merge_dist$SITE_STN), as.numeric(0), ac21merge_dist$dist_intended)
+
+    table(ac21merge_dist$dist_intended, useNA = 'always')
+    plot(ac21merge_dist$dist_intended, ac21merge_dist$Distance) #did I match up the intended distances correctly? yes
   
-  plot(ac21merge_trim_dist$STOC_ANY_N ~ ac21merge_trim_dist$Distance) #any STOC
-  plot(ac21merge_trim_dist$STOC_4N_N ~ ac21merge_trim_dist$Distance)  #all STOC
+  plot(ac21merge_dist$STOC_ANY ~ ac21merge_dist$Distance) #any STOC
+  plot(ac21merge_dist$STOC_4N ~ ac21merge_dist$Distance)  #all STOC
   
   
   #save
-    write.csv(ac21merge_trim_dist, 'output/05_ac_2021_merged.csv')  #output 1/26/23 with actual distances
+    write.csv(ac21merge_dist, 'output/05_ac_2021_merged.csv')  #output 051923 with FNLC separated
+    
     
     
 
