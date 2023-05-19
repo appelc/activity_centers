@@ -78,13 +78,13 @@ library(ggplot2)
     sort(unique(tags))      ## view all the tags used
     
   #create individual columns for the call types
-  ac22$STOC_BARK <- ifelse(grepl('BARK', ac22$MANUAL_ID), 1, 0)
-  ac22$STOC_WHIS <- ifelse(ac22$WHIS_SP %in% 'SO', 1, 0) #don't use grepl bc would get both WHIS_SO and WHIS_SV (although none this year)
-  ac22$STOC_BEG  <- ifelse(ac22$BEG_SP %in% 'SO', 1, 0)  #see above re: grepl
-  ac22$STOC_PAIR <- ifelse(grepl('(SO_MF)', ac22$MANUAL_ID), 1, 0)  
-  ac22$STOC_PAIR_MFF <- ifelse(grepl('STOC_X3', ac22$MANUAL_ID), 1, 0) #only 1 -- same as (SO_MFF)
-  ac22$STOC_IRREG  <- ifelse(grepl('STOC_IRREG', ac22$MANUAL_ID), 1, 0)
-  ac22$STOC_4N <- ifelse(grepl('STOC\\+', ac22$MANUAL_ID), 1, 0)
+    ac22$STOC_BARK <- ifelse(grepl('BARK', ac22$MANUAL_ID), 1, 0)
+    ac22$STOC_WHIS <- ifelse(ac22$WHIS_SP %in% 'SO', 1, 0) #don't use grepl bc would get both WHIS_SO and WHIS_SV (although none this year)
+    ac22$STOC_BEG  <- ifelse(ac22$BEG_SP %in% 'SO', 1, 0)  #see above re: grepl
+    ac22$STOC_PAIR <- ifelse(grepl('(SO_MF)', ac22$MANUAL_ID), 1, 0)  
+    ac22$STOC_PAIR_MFF <- ifelse(grepl('STOC_X3', ac22$MANUAL_ID), 1, 0) #only 1 -- same as (SO_MFF)
+    ac22$STOC_IRREG  <- ifelse(grepl('STOC_IRREG', ac22$MANUAL_ID), 1, 0)
+    ac22$STOC_4N <- ifelse(grepl('STOC\\+', ac22$MANUAL_ID), 1, 0)
     
     #use sex columns 'F','M','U' or extract tags as below? why don't they match?
     # ac22$female <- ifelse(grepl('(SO_F)', ac22$MANUAL_ID), 'Y','N')
@@ -96,13 +96,30 @@ library(ggplot2)
     #don't pull out STVA, BUVI, etc. here -- this dataset has only clips with predicted STOC
     
   #convert male/female columns to numeric (1/0)
-  ac22$MALE <- ifelse(ac22$M %in% 'x', 1,0)
-  ac22$FEMALE <- ifelse(ac22$F %in% 'x', 1,0)
-  ac22$FEMALE2 <- ifelse(ac22$FF %in% 'x',1,0)
-  ac22$UNK <- ifelse(ac22$U %in% 'x', 1,0)
-  ac22$JUV <- ifelse(ac22$JV %in% 'x', 1,0)  
+    ac22$MALE <- ifelse(ac22$M %in% 'x', 1,0)
+    ac22$FEMALE <- ifelse(ac22$F %in% 'x', 1,0)
+    ac22$FEMALE2 <- ifelse(ac22$FF %in% 'x',1,0)
+    ac22$UNK <- ifelse(ac22$U %in% 'x', 1,0)
+    ac22$JUV <- ifelse(ac22$JV %in% 'x', 1,0)  
   
-
+  #differentiate 4-note location call (FNLC) and irregular for female, male
+    ac22$FEMALE_FNLC <- ifelse(ac22$FEMALE == 1 & ac22$STOC_4N == 1, 1, 0)
+    ac22$MALE_FNLC   <- ifelse(ac22$MALE == 1 & ac22$STOC_4N == 1, 1, 0)
+    
+  #also include detections of pairs
+    ac22$FEMALE_FNLC_OR_PAIR <- ifelse(ac22$FEMALE_FNLC == 1 | ac22$STOC_PAIR == 1, 1, 0)
+    ac22$MALE_FNLC_OR_PAIR <- ifelse(ac22$MALE_FNLC == 1 | ac22$STOC_PAIR == 1, 1, 0)
+    
+  #how do these look?
+    table(ac22$FEMALE)              #5124 clips with any F
+    table(ac22$FEMALE_FNLC_OR_PAIR) #2255 clips with F FNLC or pair
+    table(ac22$FEMALE_FNLC)         #2165 clips with F FNLC
+    
+    table(ac22$MALE)              #3863 clips with any FM
+    table(ac22$MALE_FNLC_OR_PAIR) #3592 clips with M FNLC or pair
+    table(ac22$MALE_FNLC)         #3501 clips with M FNLC
+  
+  
 ## Format datetimes (get exact time from offset) -------------------------------
   ac22$datetime <- paste(ac22$DATE, 
                          sapply(strsplit(as.character(sapply(strsplit(as.character(ac22$IN_FILE), '\\.'), '[', 1)), '\\_'), '[', 4), 
@@ -148,11 +165,13 @@ library(ggplot2)
     
  
 ## Aggregate by site/station ---------------------------------------------------
-  ac22agg <- aggregate(ac22stocRes[,c('STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR','STOC_PAIR_MFF','STOC_IRREG',
-                                      'STOC_4N','MALE','FEMALE','FEMALE2','UNK','JUV','STOC_ANY')],
+  ac22agg <- aggregate(ac22stocRes[,c('STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR','STOC_PAIR_MFF',
+                                      'STOC_IRREG','STOC_4N','MALE','FEMALE','FEMALE2','UNK','JUV',
+                                      'STOC_ANY','FEMALE_FNLC','MALE_FNLC','FEMALE_FNLC_OR_PAIR',
+                                      'MALE_FNLC_OR_PAIR')],
                        by = list(as.factor(ac22stocRes$SITE_STN)), FUN = sum)
   colnames(ac22agg)[1] <- 'SITE_STN'
-  ac22agg  #55 rows = 55 stations with STOC detections
+  dim(ac22agg)  #55 rows = 55 stations with STOC detections
 
     ## keep in mind these can sum to greater than the number of clips... e.g., a clip can have STOC_BEG and STOC_4N
     ## but the 'STOC_ANY_N' column is the total number of clips with any of these species
@@ -162,9 +181,9 @@ library(ggplot2)
       
 
 ## Save ------------------------------------------------------------------------
-  write.csv(ac22stoc, 'output/01_ac_STOC_2022_cleaned.csv') #latest save 04/07/23
-  write.csv(ac22stocRes, 'output/02_ac_STOC_2022_residents.csv') #latest save 04/07/23
-  write.csv(ac22agg, 'output/03_ac_STOC_2022_aggregated.csv')   #latest save 04/07/23
+  write.csv(ac22stoc, 'output/01_ac_STOC_2022_cleaned.csv') #latest save 05/19/23 with FLNC separated
+  write.csv(ac22stocRes, 'output/02_ac_STOC_2022_residents.csv') #latest save 05/19/23
+  write.csv(ac22agg, 'output/04_ac_STOC_2022_aggregated.csv')   #latest save 05/19/23
   
   #2022 has no surveys to remove so I won't have an '03_..._noSurveys' dataframe
   
@@ -209,7 +228,8 @@ library(ggplot2)
   head(ac22agg)
   head(stnInfo)
 
-  ac22merge <- merge(ac22agg, stnInfo[,c('SITE_STN','Earliest','Latest','duration')], by = c('SITE_STN'), all = TRUE)
+  ac22merge <- merge(ac22agg, stnInfo[,c('SITE_STN','Earliest','Latest','duration')], 
+                     by = c('SITE_STN'), all = TRUE)
       
     nrow(ac22agg)  
     nrow(stnInfo)  
@@ -221,8 +241,6 @@ library(ggplot2)
                                  ifelse(grepl('CC', ac22merge$SITE_STN), 'female',
                                         ifelse(grepl('BC', ac22merge$SITE_STN), 'pair', 'pair')))
     table(ac22merge$reproState, useNA = 'always')
-    
-    ## **DOUBLE CHECK WITH CHRIS ON THESE; THEY ARE TRICKIER FOR 2022**
   
     
 ## Add distances as measured in GIS --------------------------------------------
@@ -275,6 +293,6 @@ library(ggplot2)
   
   
   #save
-    write.csv(ac22merge_dist, 'output/05_ac_2022_merged.csv')  #output 04/07/23
+    write.csv(ac22merge_dist, 'output/05_ac_2022_merged.csv')  #output 05/19/23
     
     

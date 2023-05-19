@@ -176,7 +176,6 @@ library(ggplot2)
     
   # ac21agg <- fread('output/ac_STOC_2021_aggregated.csv') #if necessary
   
-  
 ## Read in cleaned files from Julie --------------------------------------------  
   ac21jj <- fread('2021/COA_AC_Work/from_Julie/data_output/COAAC_2021_SampleSummary_fromNoise.csv')
   head(ac21jj)    
@@ -240,7 +239,7 @@ library(ggplot2)
   ac21merge_dist$dist_intended <- ifelse(grepl('_12|_13|_18|_20|_25|_26', ac21merge_dist$SITE_STN), as.numeric(1000), NA)
   ac21merge_dist$dist_intended <- ifelse(grepl('_07|_11|_14|_24|_27|_31',  ac21merge_dist$SITE_STN), as.numeric(1732), ac21merge_dist$dist_intended)
   ac21merge_dist$dist_intended <- ifelse(grepl('_06|_08|_17|_21|_30|_32', ac21merge_dist$SITE_STN), as.numeric(2000), ac21merge_dist$dist_intended)
-  ac21merge_dist$dist_intended <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_dist$SITESTN), as.numeric(2646), ac21merge_dist$dist_intended)
+  ac21merge_dist$dist_intended <- ifelse(grepl('_02|_03|_05|_09|_10|_15|_23|_28|_29|_33|_35|_36', ac21merge_dist$SITE_STN), as.numeric(2646), ac21merge_dist$dist_intended)
   ac21merge_dist$dist_intended <- ifelse(grepl('_01|_04|_16|_22|_34|_37', ac21merge_dist$SITE_STN), as.numeric(3000), ac21merge_dist$dist_intended)
   ac21merge_dist$dist_intended <- ifelse(grepl('19', ac21merge_dist$SITE_STN), as.numeric(0), ac21merge_dist$dist_intended)
 
