@@ -21,8 +21,6 @@ library(reshape2)
                                psi_est = numeric(), psi_se = numeric(), p_est = numeric(), p_se = numeric()),
                           class = 'data.frame')    
 
-
-
   
 ## Load covariates -------------------------------------------------------------
   

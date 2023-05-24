@@ -11,10 +11,10 @@ library(reshape2)
   
   ## Make sure sites are sorted alphabetically by site name, then delete that column  
     dh_any_21 <- dh_any_21[order(dh_any_21$SITE_STN),]; dh_any_21 <- data.frame(dh_any_21)
-      rownames(dh_any_21) <- paste(dh_any_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_any_21) <- paste('2021', dh_any_21$SITE_STN, sep = '_')
       dh_any_21 <- dh_any_21[,-c(1:3, 24:25)]
     dh_any_22 <- dh_any_22[order(dh_any_22$SITE_STN),]; dh_any_22 <- data.frame(dh_any_22)
-      rownames(dh_any_22) <- paste(dh_any_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_any_22) <- paste('2022', dh_any_22$SITE_STN, sep = '_')
       dh_any_22 <- dh_any_22[,-c(1:3, 25:26)]
   
   ## Combine years
@@ -35,10 +35,10 @@ library(reshape2)
     
   ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_fem_21 <- dh_fem_21[order(dh_fem_21$SITE_STN),]; dh_fem_21 <- data.frame(dh_fem_21)
-      rownames(dh_fem_21) <- paste(dh_fem_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_fem_21) <- paste('2021', dh_fem_21$SITE_STN, sep = '_')
       dh_fem_21 <- dh_fem_21[,-c(1:3, 24:25)]
     dh_fem_22 <- dh_fem_22[order(dh_fem_22$SITE_STN),]; dh_fem_22 <- data.frame(dh_fem_22)
-      rownames(dh_fem_22) <- paste(dh_fem_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_fem_22) <- paste('2022', dh_fem_22$SITE_STN, sep = '_')
       dh_fem_22 <- dh_fem_22[,-c(1:3, 25:26)]
 
   ## Combine years
@@ -59,10 +59,10 @@ library(reshape2)
     
     ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_fem_21 <- dh_fem_21[order(dh_fem_21$SITE_STN),]; dh_fem_21 <- data.frame(dh_fem_21)
-      rownames(dh_fem_21) <- paste(dh_fem_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_fem_21) <- paste('2021', dh_fem_21$SITE_STN, sep = '_')
       dh_fem_21 <- dh_fem_21[,-c(1:3, 24:25)]
     dh_fem_22 <- dh_fem_22[order(dh_fem_22$SITE_STN),]; dh_fem_22 <- data.frame(dh_fem_22)
-      rownames(dh_fem_22) <- paste(dh_fem_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_fem_22) <- paste('2022', dh_fem_22$SITE_STN, sep = '_')
       dh_fem_22 <- dh_fem_22[,-c(1:3, 25:26)]
     
     ## Combine years
@@ -83,10 +83,10 @@ library(reshape2)
     
   ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_fem_21 <- dh_fem_21[order(dh_fem_21$SITE_STN),]; dh_fem_21 <- data.frame(dh_fem_21)
-      rownames(dh_fem_21) <- paste(dh_fem_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_fem_21) <- paste('2021', dh_fem_21$SITE_STN, sep = '_')
       dh_fem_21 <- dh_fem_21[,-c(1:3, 24:25)]
     dh_fem_22 <- dh_fem_22[order(dh_fem_22$SITE_STN),]; dh_fem_22 <- data.frame(dh_fem_22)
-      rownames(dh_fem_22) <- paste(dh_fem_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_fem_22) <- paste('2022', dh_fem_22$SITE_STN, sep = '_')
       dh_fem_22 <- dh_fem_22[,-c(1:3, 25:26)]
     
     ## Combine years
@@ -107,10 +107,10 @@ library(reshape2)
     
   ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_mal_21 <- dh_mal_21[order(dh_mal_21$SITE_STN),]; dh_mal_21 <- data.frame(dh_mal_21)
-      rownames(dh_mal_21) <- paste(dh_mal_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_mal_21) <- paste('2021', dh_mal_21$SITE_STN, sep = '_')
       dh_mal_21 <- dh_mal_21[,-c(1:3, 24:25)]
     dh_mal_22 <- dh_mal_22[order(dh_mal_22$SITE_STN),]; dh_mal_22 <- data.frame(dh_mal_22)
-      rownames(dh_mal_22) <- paste(dh_mal_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_mal_22) <- paste('2022', dh_mal_22$SITE_STN, sep = '_')
       dh_mal_22 <- dh_mal_22[,-c(1:3, 25:26)]
     
   ## Combine years
@@ -131,10 +131,10 @@ library(reshape2)
     
   ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_mal_21 <- dh_mal_21[order(dh_mal_21$SITE_STN),]; dh_mal_21 <- data.frame(dh_mal_21)
-      rownames(dh_mal_21) <- paste(dh_mal_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_mal_21) <- paste('2021', dh_mal_21$SITE_STN, sep = '_')
       dh_mal_21 <- dh_mal_21[,-c(1:3, 24:25)]
     dh_mal_22 <- dh_mal_22[order(dh_mal_22$SITE_STN),]; dh_mal_22 <- data.frame(dh_mal_22)
-      rownames(dh_mal_22) <- paste(dh_mal_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_mal_22) <- paste('2022', dh_mal_22$SITE_STN, sep = '_')
       dh_mal_22 <- dh_mal_22[,-c(1:3, 25:26)]
     
     ## Combine years
@@ -155,10 +155,10 @@ library(reshape2)
     
     ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_mal_21 <- dh_mal_21[order(dh_mal_21$SITE_STN),]; dh_mal_21 <- data.frame(dh_mal_21)
-      rownames(dh_mal_21) <- paste(dh_mal_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_mal_21) <- paste('2021', dh_mal_21$SITE_STN, sep = '_')
       dh_mal_21 <- dh_mal_21[,-c(1:3, 24:25)]
     dh_mal_22 <- dh_mal_22[order(dh_mal_22$SITE_STN),]; dh_mal_22 <- data.frame(dh_mal_22)
-      rownames(dh_mal_22) <- paste(dh_mal_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_mal_22) <- paste('2022', dh_mal_22$SITE_STN, sep = '_')
       dh_mal_22 <- dh_mal_22[,-c(1:3, 25:26)]
     
     ## Combine years
@@ -179,10 +179,10 @@ library(reshape2)
     
   ## Make sure sites are sorted alphabetically by hexagon, then delete that column  
     dh_pair_21 <- dh_pair_21[order(dh_pair_21$SITE_STN),]; dh_pair_21 <- data.frame(dh_pair_21)
-      rownames(dh_pair_21) <- paste(dh_pair_21$SITE_STN, '2021', sep = '_')
+      rownames(dh_pair_21) <- paste('2021', dh_pair_21$SITE_STN, sep = '_')
       dh_pair_21 <- dh_pair_21[,-c(1:3, 24:25)]
     dh_pair_22 <- dh_pair_22[order(dh_pair_22$SITE_STN),]; dh_pair_22 <- data.frame(dh_pair_22)
-      rownames(dh_pair_22) <- paste(dh_pair_22$SITE_STN, '2022', sep = '_')
+      rownames(dh_pair_22) <- paste('2022', dh_pair_22$SITE_STN, sep = '_')
       dh_pair_22 <- dh_pair_22[,-c(1:3, 25:26)]
     
   ## Combine years

@@ -8,10 +8,8 @@ ac21_merged <- fread('output/05_ac_2021_merged.csv'); ac21_merged <- ac21_merged
 ac22_merged <- fread('output/05_ac_2022_merged.csv'); ac22_merged <- ac22_merged[,-1]
 
   #merge years
-  colnames(ac21_merged) <- c('SITE_STN','Earliest','Latest','duration',
-                             'STOC_ANY','STOC_4N','STOC_IRREG','STOC_BARK','STOC_WHIS','STOC_BEG','STOC_PAIR',
-                             'FEMALE','MALE','UNK','JUV',
-                             'reproState','Distance','utmx_new','utmy_new','dist_intended')
+  colnames(ac21_merged)[c(17:18,22:23)] <- c('Earliest','Latest','utmx_new','utmy_new')
+  
   ac21_merged$year <- '2021'; ac22_merged$year <- '2022'
   ac_merged <- rbind(ac21_merged, ac22_merged, fill = TRUE)
 
@@ -59,13 +57,13 @@ ac22_merged <- fread('output/05_ac_2022_merged.csv'); ac22_merged <- ac22_merged
   
   
   #2021
-  anystoc21 <- anySTOC_21[!is.na(anySTOC_21$STOC_ANY_N),]
-    (tot_any_21 <- sum(anystoc21$STOC_ANY_N))                            #6554 detections of any STOC in 2021
-    sum(anystoc21[anystoc21$dist_intended <= 1000,]$STOC_ANY_N) / tot_any_21  #92% within 1 km
-    sum(anystoc21[anystoc21$dist_intended <= 2000,]$STOC_ANY_N) / tot_any_21  #99% within 2 km
-    sum(anystoc21[anystoc21$dist_intended <= 3000,]$STOC_ANY_N) / tot_any_21  #100% within 3 km
+  anystoc21 <- ac21_merged[!is.na(ac21_merged$STOC_ANY),]
+    (tot_any_21 <- sum(anystoc21$STOC_ANY))                            #6554 detections of any STOC in 2021
+    sum(anystoc21[anystoc21$dist_intended <= 1000,]$STOC_ANY) / tot_any_21  #92% within 1 km
+    sum(anystoc21[anystoc21$dist_intended <= 2000,]$STOC_ANY) / tot_any_21  #99% within 2 km
+    sum(anystoc21[anystoc21$dist_intended <= 3000,]$STOC_ANY) / tot_any_21  #100% within 3 km
     
-  fem21 <- fem_21[!is.na(fem_21$FEMALE_N),]
+  fem21 <- fem_21[!is.na(fem_21$FEMALE),]
     (tot_f_21 <- sum(fem_21$FEMALE_N))                       #1382 detections of female STOC in 2021
     sum(fem21[fem21$dist_intended <= 1000,]$FEMALE_N) / tot_f_21  #98% within 1 km  
     sum(fem21[fem21$dist_intended <= 2000,]$FEMALE_N) / tot_f_21  #100% within 2 km

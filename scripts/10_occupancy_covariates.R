@@ -13,7 +13,7 @@ library(tidyverse)
   info22 <- fread('output/05_ac_2022_merged.csv')
   
   #pull out columns we need and format
-  site21 <- info21[,c('SITESTN','duration','reproState','Distance','dist_intended','XNAD83FP','YNAD83FP')]
+  site21 <- info21[,c('SITE_STN','duration','reproState','Distance','dist_intended','XNAD83FP','YNAD83FP')]
     colnames(site21) <- c('site_stn','duration','repro_state','dist_actual','dist_intended','utm_x','utm_y')
   site22 <- info22[,c('SITE_STN','duration','reproState','Distance','dist_intended','utmx_new','utmy_new')]
     colnames(site22) <- c('site_stn','duration','repro_state','dist_actual','dist_intended','utm_x','utm_y')
@@ -197,9 +197,9 @@ library(tidyverse)
   noise_weekly_combined_std <- bind_rows(noise21_wk_left_wide_std, noise22_wk_left_wide_std)
   
   #save
-  write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
-  write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
-  
+  # write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
+  # write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
+ 
   
 ## Effort (recording seconds) -- staggered for years separately ----------------
   head(noise21)
@@ -292,9 +292,9 @@ library(tidyverse)
   effort_weekly_combined_std <- bind_rows(effort21_wk_left_wide_std, effort22_wk_left_wide_std)
   
   #save
-  write.csv(effort_weekly_combined_raw, 'output/10_occ_covariates/10_effort_weekly_raw_21-22.csv')
-  write.csv(effort_weekly_combined_std, 'output/10_occ_covariates/10_effort_weekly_std_21-22.csv')
-  
-  write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
-  write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
-  
+  # write.csv(effort_weekly_combined_raw, 'output/10_occ_covariates/10_effort_weekly_raw_21-22.csv')
+  # write.csv(effort_weekly_combined_std, 'output/10_occ_covariates/10_effort_weekly_std_21-22.csv')
+  # 
+  # write.csv(noise_weekly_combined_raw, 'output/10_occ_covariates/10_noise_weekly_raw_21-22.csv')
+  # write.csv(noise_weekly_combined_std, 'output/10_occ_covariates/10_noise_weekly_std_21-22.csv')
+  # 
