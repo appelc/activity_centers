@@ -40,10 +40,10 @@ library(MASS)
   acData <- fread('../output/05_ac_2021_merged.csv')
   
   #keep necessary columns
-  anySTOC <- acData[,c('STOC_ANY_N','duration','Distance','dist_intended','reproState')]
+  anySTOC <- acData[,c('STOC_ANY','duration','Distance','dist_intended','reproState')]
   
   #convert NAs to 0s and order levels
-  anySTOC$stoc_any_count <- ifelse(is.na(anySTOC$STOC_ANY_N), 0, anySTOC$STOC_ANY_N)
+  anySTOC$stoc_any_count <- ifelse(is.na(anySTOC$STOC_ANY), 0, anySTOC$STOC_ANY)
   anySTOC$reproState <- factor(anySTOC$reproState, levels = c('pair','nest','fledged'))
 
   #print
@@ -203,11 +203,11 @@ plot.any.nb.dist
 ## format counts for females and males
 
   #keep necessary columns
-  fmSTOC <- acData[,c('FEMALE_N','MALE_N','duration','Distance','dist_intended','reproState')]
+  fmSTOC <- acData[,c('FEMALE','MALE','duration','Distance','dist_intended','reproState')]
   
   #convert NAs to 0s and order levels
-  fmSTOC$count_female <- ifelse(is.na(fmSTOC$FEMALE_N), 0, fmSTOC$FEMALE_N)
-  fmSTOC$count_male <- ifelse(is.na(fmSTOC$MALE_N), 0, fmSTOC$MALE_N)
+  fmSTOC$count_female <- ifelse(is.na(fmSTOC$FEMALE), 0, fmSTOC$FEMALE)
+  fmSTOC$count_male <- ifelse(is.na(fmSTOC$MALE), 0, fmSTOC$MALE)
   fmSTOC$reproState <- factor(fmSTOC$reproState, levels = c('pair','nest','fledged'))
 
   #print

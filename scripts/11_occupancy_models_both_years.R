@@ -5,23 +5,6 @@ library(unmarked)
 library(ggplot2)
 library(reshape2)
 library(dplyr)
-
-
-## Set up folder for model outputs & figures -----------------------------------
-  ifelse(!dir.exists(paste('output/11_occ_models', Sys.Date(), sep = '/')), 
-         dir.create(paste('output/11_occ_models', Sys.Date(), sep = '/')), 'Folder exists already')
-  print(paste('created folder', paste('output/11_occ_models', Sys.Date(), sep = '/')))
-  
-  ifelse(!dir.exists(paste('figures/occ_models', Sys.Date(), sep = '/')), 
-         dir.create(paste('figures/occ_models', Sys.Date(), sep = '/')), 'Folder exists already')
-  print(paste('created folder', paste('figures/occ_models', Sys.Date(), sep = '/')))
-
-
-## Set up dataframe for model results ------------------------------------------
-  modResults <- structure(list(model = character(), type = character(), cov = character(),
-                               psi_est = numeric(), psi_se = numeric(), p_est = numeric(), p_se = numeric()),
-                          class = 'data.frame')    
-
   
 ## Load covariates -------------------------------------------------------------
   
@@ -36,9 +19,9 @@ library(dplyr)
       
     
   ## Observation-level
-  effort <- fread('output/10_occ_covariates/10_effort_weekly_std_21-22.csv', header = TRUE)
-  noise  <- fread('output/10_occ_covariates/10_noise_weekly_std_21-22.csv', header = TRUE)
-  
+  effort <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22.csv', header = TRUE)
+  noise <- fread('output/10_occ_covariates/10_noise_weekly_raw_21-22.csv', header = TRUE)  
+    
     ## Make sure sites are sorted alphabetically, then delete that column
     effort$year_site <- paste(effort$year, effort$site_name, sep = '_')
       effort <- effort[order(effort$year_site),]
@@ -49,11 +32,13 @@ library(dplyr)
       noise_covar <- noise[,-c('V1','site_name','year','year_site')]
       
     ## Replace NAs with mean value (0)
-    effort_covar[is.na(effort_covar)] <- mean(unlist(effort_covar), na.rm = TRUE) #mean should be ~0 because it's standardized
-    noise_covar[is.na(noise_covar)] <- mean(unlist(noise_covar), na.rm = TRUE)
+    (effort_mean <- mean(unlist(effort_covar), na.rm = TRUE))
+      effort_covar[is.na(effort_covar)] <- effort_mean
+    (noise_mean <- mean(unlist(noise_covar),na.rm = TRUE))
+      noise_covar[is.na(noise_covar)] <- noise_mean
     
     ## Format some site-level as observation-level
-    dist_obs_covar <- matrix(data = site_covars$dist_actual_std, nrow = 291, ncol = 21)
+    dist_obs_covar <- matrix(data = site_covars$dist_actual, nrow = 291, ncol = 21)
     nest_obs_covar <- matrix(data = site_covars$nested, nrow = 291, ncol = 21)
     site_obs_covar <- matrix(data = site_covars$site_name, nrow = 291, ncol = 21)
     
@@ -162,114 +147,160 @@ library(dplyr)
 ## Run models ------------------------------------------------------------------
 
   #ANY detections (constant psi)
-    p1_any <- occu(~1                           ~1, data = input_any)
-    p2_any <- occu(~dist                        ~1, data = input_any)
-    p3_any <- occu(~dist + site                 ~1, data = input_any)
-    p4_any <- occu(~dist +        nest          ~1, data = input_any)
-    p5_any <- occu(~dist +               effort ~1, data = input_any)
-    p6_any <- occu(~                     effort ~1, data = input_any)
-    p7_any <- occu(~dist + site +        effort ~1, data = input_any) #top model
-    p8_any <- occu(~dist +        nest + effort ~1, data = input_any)
+    p1_any <- occu(~1                                         ~1, data = input_any)
+    p2_any <- occu(~scale(dist)                               ~1, data = input_any)
+    p3_any <- occu(~scale(dist) + site                        ~1, data = input_any)
+    p4_any <- occu(~scale(dist) +        nest                 ~1, data = input_any)
+    p5_any <- occu(~scale(dist) +               scale(effort) ~1, data = input_any)
+    p6_any <- occu(~                            scale(effort) ~1, data = input_any)
+    p7_any <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_any) #top model
+    p8_any <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_any)
     
-    modSel(fitList(p1_any, p2_any, p3_any, p4_any, p5_any, p6_any, p7_any, p8_any))
-      #top mod is p7; next is p3 but deltaAIC is 37         
+    modList_any <- fitList('p(.), psi(.)}' = p1_any,
+                       'p(dist), psi(.)' = p2_any,
+                       'p(dist + site), psi(.)' = p3_any,
+                       'p(dist + nest), psi(.)' = p4_any,
+                       'p(dist + effort), psi(.)' = p5_any,
+                       'p(effort), psi(.)' = p6_any,
+                       'p(dist + site + effort), psi(.)' = p7_any, #top mod
+                       'p(dist + nest + effort), psi(.)' = p8_any) 
+    modSel(modList_any)
     
     
   #FEMALE detections (constant psi)
-    p1_fem <- occu(~1                           ~1, data = input_female)
-    p2_fem <- occu(~dist                        ~1, data = input_female)
-    p3_fem <- occu(~dist + site                 ~1, data = input_female)
-    p4_fem <- occu(~dist +        nest          ~1, data = input_female)
-    p5_fem <- occu(~dist +               effort ~1, data = input_female)
-    p6_fem <- occu(~                     effort ~1, data = input_female)
-    p7_fem <- occu(~dist + site +        effort ~1, data = input_female) #top model
-    p8_fem <- occu(~dist +        nest + effort ~1, data = input_female)
+    p1_fem <- occu(~1                                         ~1, data = input_female)
+    p2_fem <- occu(~scale(dist)                               ~1, data = input_female)
+    p3_fem <- occu(~scale(dist) + site                        ~1, data = input_female)
+    p4_fem <- occu(~scale(dist) +        nest                 ~1, data = input_female)
+    p5_fem <- occu(~scale(dist) +               scale(effort) ~1, data = input_female)
+    p6_fem <- occu(~                            scale(effort) ~1, data = input_female)
+    p7_fem <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_female) #top model
+    p8_fem <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_female)
     
-    modSel(fitList(p1_fem, p2_fem, p3_fem, p4_fem, p5_fem, p6_fem, p7_fem, p8_fem))
-    #top mod is p7; next is p3 but deltaAIC is 8     
-    
-    
-  #FEMALE (FNLC or pair) detections (constant psi)
-    p1_fem_fnlcp <- occu(~1                           ~1, data = input_female_fnlcp)
-    p2_fem_fnlcp <- occu(~dist                        ~1, data = input_female_fnlcp)
-    p3_fem_fnlcp <- occu(~dist + site                 ~1, data = input_female_fnlcp)
-    p4_fem_fnlcp <- occu(~dist +        nest          ~1, data = input_female_fnlcp)
-    p5_fem_fnlcp <- occu(~dist +               effort ~1, data = input_female_fnlcp)
-    p6_fem_fnlcp <- occu(~                     effort ~1, data = input_female_fnlcp)
-    p7_fem_fnlcp <- occu(~dist + site +        effort ~1, data = input_female_fnlcp) #top model
-    p8_fem_fnlcp <- occu(~dist +        nest + effort ~1, data = input_female_fnlcp)
-    
-    modSel(fitList(p1_fem_fnlcp, p2_fem_fnlcp, p3_fem_fnlcp, p4_fem_fnlcp, p5_fem_fnlcp, 
-                   p6_fem_fnlcp, p7_fem_fnlcp, p8_fem_fnlcp))
-    #top mod is p7; next is p3 but deltaAIC is 6     
+    modList_fem <- fitList('p(.), psi(.)}' = p1_fem,
+                       'p(dist), psi(.)' = p2_fem,
+                       'p(dist + site), psi(.)' = p3_fem,
+                       'p(dist + nest), psi(.)' = p4_fem,
+                       'p(dist + effort), psi(.)' = p5_fem,
+                       'p(effort), psi(.)' = p6_fem,
+                       'p(dist + site + effort), psi(.)' = p7_fem, #top mod
+                       'p(dist + nest + effort), psi(.)' = p8_fem) 
+    modSel(modList_fem)
     
     
   #FEMALE (FNLC or pair) detections (constant psi)
-    p1_fem_fnlc <- occu(~1                           ~1, data = input_female_fnlc)
-    p2_fem_fnlc <- occu(~dist                        ~1, data = input_female_fnlc)
-    p3_fem_fnlc <- occu(~dist + site                 ~1, data = input_female_fnlc)
-    p4_fem_fnlc <- occu(~dist +        nest          ~1, data = input_female_fnlc)
-    p5_fem_fnlc <- occu(~dist +               effort ~1, data = input_female_fnlc)
-    p6_fem_fnlc <- occu(~                     effort ~1, data = input_female_fnlc)
-    p7_fem_fnlc <- occu(~dist + site +        effort ~1, data = input_female_fnlc) #top model
-    p8_fem_fnlc <- occu(~dist +        nest + effort ~1, data = input_female_fnlc)
+    p1_fem_fnlcp <- occu(~1                                         ~1, data = input_female_fnlcp)
+    p2_fem_fnlcp <- occu(~scale(dist)                               ~1, data = input_female_fnlcp)
+    p3_fem_fnlcp <- occu(~scale(dist) + site                        ~1, data = input_female_fnlcp)
+    p4_fem_fnlcp <- occu(~scale(dist) +               nest          ~1, data = input_female_fnlcp)
+    p5_fem_fnlcp <- occu(~dist +                      scale(effort) ~1, data = input_female_fnlcp)
+    p6_fem_fnlcp <- occu(~                            scale(effort) ~1, data = input_female_fnlcp)
+    p7_fem_fnlcp <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_female_fnlcp) #top model
+    p8_fem_fnlcp <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_female_fnlcp)
     
-    modSel(fitList(p1_fem_fnlc, p2_fem_fnlc, p3_fem_fnlc, p4_fem_fnlc, p5_fem_fnlc, 
-                   p6_fem_fnlc, p7_fem_fnlc, p8_fem_fnlc))
-    #top mod is p7; next is p3 but deltaAIC is 6
+    modList_fem_fnlcp <- fitList('p(.), psi(.)}' = p1_fem_fnlcp,
+                       'p(dist), psi(.)' = p2_fem_fnlcp,
+                       'p(dist + site), psi(.)' = p3_fem_fnlcp,
+                       'p(dist + nest), psi(.)' = p4_fem_fnlcp,
+                       'p(dist + effort), psi(.)' = p5_fem_fnlcp,
+                       'p(effort), psi(.)' = p6_fem_fnlcp,
+                       'p(dist + site + effort), psi(.)' = p7_fem_fnlcp, #top mod
+                       'p(dist + nest + effort), psi(.)' = p8_fem_fnlcp) 
+    modSel(modList_fem_fnlcp)
     
     
+  #FEMALE (FNLC or pair) detections (constant psi)
+    p1_fem_fnlc <- occu(~1                                         ~1, data = input_female_fnlc)
+    p2_fem_fnlc <- occu(~scale(dist)                               ~1, data = input_female_fnlc)
+    p3_fem_fnlc <- occu(~scale(dist) + site                        ~1, data = input_female_fnlc)
+    p4_fem_fnlc <- occu(~scale(dist) +        nest                 ~1, data = input_female_fnlc)
+    p5_fem_fnlc <- occu(~scale(dist) +               scale(effort) ~1, data = input_female_fnlc)
+    p6_fem_fnlc <- occu(~                            scale(effort) ~1, data = input_female_fnlc)
+    p7_fem_fnlc <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_female_fnlc) #top model
+    p8_fem_fnlc <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_female_fnlc)
+    
+    modList_fem_fnlc <- fitList('p(.), psi(.)}' = p1_fem_fnlc,
+                                 'p(dist), psi(.)' = p2_fem_fnlc,
+                                 'p(dist + site), psi(.)' = p3_fem_fnlc,
+                                 'p(dist + nest), psi(.)' = p4_fem_fnlc,
+                                 'p(dist + effort), psi(.)' = p5_fem_fnlc,
+                                 'p(effort), psi(.)' = p6_fem_fnlc,
+                                 'p(dist + site + effort), psi(.)' = p7_fem_fnlc, #top mod
+                                 'p(dist + nest + effort), psi(.)' = p8_fem_fnlc) 
+    modSel(modList_fem_fnlc)    
+  
+      
   #MALE detections (constant psi)
-    p1_mal <- occu(~1                           ~1, data = input_male)
-    p2_mal <- occu(~dist                        ~1, data = input_male)
-    p3_mal <- occu(~dist + site                 ~1, data = input_male)
-    p4_mal <- occu(~dist +        nest          ~1, data = input_male)
-    p5_mal <- occu(~dist +               effort ~1, data = input_male)
-    p6_mal <- occu(~                     effort ~1, data = input_male)
-    p7_mal <- occu(~dist + site +        effort ~1, data = input_male) #top model
-    p8_mal <- occu(~dist +        nest + effort ~1, data = input_male)
+    p1_mal <- occu(~1                                         ~1, data = input_male)
+    p2_mal <- occu(~scale(dist)                               ~1, data = input_male)
+    p3_mal <- occu(~scale(dist) + site                        ~1, data = input_male)
+    p4_mal <- occu(~scale(dist) +        nest                 ~1, data = input_male)
+    p5_mal <- occu(~scale(dist) +               scale(effort) ~1, data = input_male)
+    p6_mal <- occu(~                            scale(effort) ~1, data = input_male)
+    p7_mal <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_male) #top model
+    p8_mal <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_male)
     
-    modSel(fitList(p1_mal, p2_mal, p3_mal, p4_mal, p5_mal, p6_mal, p7_mal, p8_mal))
-    #top mod is p7; next is p3 but deltaAIC is 30
+    modList_mal <- fitList('p(.), psi(.)}' = p1_mal,
+                                 'p(dist), psi(.)' = p2_mal,
+                                 'p(dist + site), psi(.)' = p3_mal,
+                                 'p(dist + nest), psi(.)' = p4_mal,
+                                 'p(dist + effort), psi(.)' = p5_mal,
+                                 'p(effort), psi(.)' = p6_mal,
+                                 'p(dist + site + effort), psi(.)' = p7_mal, #top mod
+                                 'p(dist + nest + effort), psi(.)' = p8_mal) 
+    modSel(modList_fem_fnlcp)
     
   
   #MALE (FNLC or pair) detections (constant psi)
-    p1_mal_fnlcp <- occu(~1                           ~1, data = input_male_fnlcp)
-    p2_mal_fnlcp <- occu(~dist                        ~1, data = input_male_fnlcp)
-    p3_mal_fnlcp <- occu(~dist + site                 ~1, data = input_male_fnlcp)
-    p4_mal_fnlcp <- occu(~dist +        nest          ~1, data = input_male_fnlcp)
-    p5_mal_fnlcp <- occu(~dist +               effort ~1, data = input_male_fnlcp)
-    p6_mal_fnlcp <- occu(~                     effort ~1, data = input_male_fnlcp)
-    p7_mal_fnlcp <- occu(~dist + site +        effort ~1, data = input_male_fnlcp) #top model
-    p8_mal_fnlcp <- occu(~dist +        nest + effort ~1, data = input_male_fnlcp)
+    p1_mal_fnlcp <- occu(~1                                         ~1, data = input_male_fnlcp)
+    p2_mal_fnlcp <- occu(~scale(dist)                               ~1, data = input_male_fnlcp)
+    p3_mal_fnlcp <- occu(~scale(dist) + site                        ~1, data = input_male_fnlcp)
+    p4_mal_fnlcp <- occu(~scale(dist) +        nest                 ~1, data = input_male_fnlcp)
+    p5_mal_fnlcp <- occu(~scale(dist) +               scale(effort) ~1, data = input_male_fnlcp)
+    p6_mal_fnlcp <- occu(~                            scale(effort) ~1, data = input_male_fnlcp)
+    p7_mal_fnlcp <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_male_fnlcp) #top model
+    p8_mal_fnlcp <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_male_fnlcp)
     
-    modSel(fitList(p1_mal_fnlcp, p2_mal_fnlcp, p3_mal_fnlcp, p4_mal_fnlcp, p5_mal_fnlcp, 
-                   p6_mal_fnlcp, p7_mal_fnlcp, p8_mal_fnlcp))
-    #top mod is p7; next is p3 but deltaAIC is 30
+    modList_mal_fnlcp <- fitList('p(.), psi(.)}' = p1_mal_fnlcp,
+                                 'p(dist), psi(.)' = p2_mal_fnlcp,
+                                 'p(dist + site), psi(.)' = p3_mal_fnlcp,
+                                 'p(dist + nest), psi(.)' = p4_mal_fnlcp,
+                                 'p(dist + effort), psi(.)' = p5_mal_fnlcp,
+                                 'p(effort), psi(.)' = p6_mal_fnlcp,
+                                 'p(dist + site + effort), psi(.)' = p7_mal_fnlcp, #top mod
+                                 'p(dist + nest + effort), psi(.)' = p8_mal_fnlcp) 
+    modSel(modList_mal_fnlcp)   
     
+  #MALE (FNLC only) detections (constant psi)
+    p1_mal_fnlc <- occu(~1                                         ~1, data = input_male_fnlc)
+    p2_mal_fnlc <- occu(~scale(dist)                               ~1, data = input_male_fnlc)
+    p3_mal_fnlc <- occu(~scale(dist) + site                        ~1, data = input_male_fnlc)
+    p4_mal_fnlc <- occu(~scale(dist) +        nest                 ~1, data = input_male_fnlc)
+    p5_mal_fnlc <- occu(~scale(dist) +               scale(effort) ~1, data = input_male_fnlc)
+    p6_mal_fnlc <- occu(~                            scale(effort) ~1, data = input_male_fnlc)
+    p7_mal_fnlc <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_male_fnlc) #top model
+    p8_mal_fnlc <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_male_fnlc)
     
-  #MALE (FNLC or pair) detections (constant psi)
-    p1_mal_fnlc <- occu(~1                           ~1, data = input_male_fnlc)
-    p2_mal_fnlc <- occu(~dist                        ~1, data = input_male_fnlc)
-    p3_mal_fnlc <- occu(~dist + site                 ~1, data = input_male_fnlc)
-    p4_mal_fnlc <- occu(~dist +        nest          ~1, data = input_male_fnlc)
-    p5_mal_fnlc <- occu(~dist +               effort ~1, data = input_male_fnlc)
-    p6_mal_fnlc <- occu(~                     effort ~1, data = input_male_fnlc)
-    p7_mal_fnlc <- occu(~dist + site +        effort ~1, data = input_male_fnlc) #top model
-    p8_mal_fnlc <- occu(~dist +        nest + effort ~1, data = input_male_fnlc)
-    
-    modSel(fitList(p1_mal_fnlc, p2_mal_fnlc, p3_mal_fnlc, p4_mal_fnlc, p5_mal_fnlc, 
-                   p6_mal_fnlc, p7_mal_fnlc, p8_mal_fnlc))
-    #top mod is p7; next is p3 but deltaAIC is 29   
+    modList_mal_fnlc <- fitList('p(.), psi(.)}' = p1_mal_fnlc,
+                           'p(dist), psi(.)' = p2_mal_fnlc,
+                           'p(dist + site), psi(.)' = p3_mal_fnlc,
+                           'p(dist + nest), psi(.)' = p4_mal_fnlc,
+                           'p(dist + effort), psi(.)' = p5_mal_fnlc,
+                           'p(effort), psi(.)' = p6_mal_fnlc,
+                           'p(dist + site + effort), psi(.)' = p7_mal_fnlc, #top mod
+                           'p(dist + nest + effort), psi(.)' = p8_mal_fnlc) 
+    modSel(modList_mal_fnlc)  
     
     
   #Examine results
-
-    
+    p7_any #e.g.
+  
+      
   #Plot
     #format covariate values to predict on
-    dist_grid   <- sort(c(0,seq(min(site_covars$dist_actual_std), max(site_covars$dist_actual_std), length = 50)))
-    effort_grid <- sort(c(0,seq(min(effort_covar), max(effort_covar), length = 50)))
+    dist_grid   <- sort(c(mean(site_covars$dist_actual), seq(min(site_covars$dist_actual), 
+                                                             max(site_covars$dist_actual), length = 50)))
+    effort_grid <- sort(c(0, effort_mean, seq(min(effort_covar), max(effort_covar), length = 49)))
     site_grid   <- unique(site_covars$site_name) 
     
       new_covar <- expand.grid('dist' = dist_grid, 'effort' = effort_grid, 'site' = site_grid)
@@ -283,27 +314,26 @@ library(dplyr)
     occ_pred_p7fem <- predict(p7_fem, type = 'state', new_covar)
     occ_pred_p7mal <- predict(p7_mal, type = 'state', new_covar)
 
-    #format for plotting and back-transform cov
-    effort_raw <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22.csv')
-    effort_raw$site <- sapply(strsplit(effort_raw$site_name, '\\_'), '[', 1)
-    effort_raw_dc <- data.frame('site' = 'DC',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'DC',]))
-    effort_raw_mc <- data.frame('site' = 'MC',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'MC',]))
-    effort_raw_ug <- data.frame('site' = 'UG',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'UG',]))
-    effort_raw_wc <- data.frame('site' = 'WC',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'WC',]))
-    effort_raw_bc <- data.frame('site' = 'BC',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'BC',]))
-    effort_raw_cc <- data.frame('site' = 'CC',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'CC',]))
-    effort_raw_lm <- data.frame('site' = 'LM',
-                                'effort_raw' = unlist(effort_raw[, c(3:22,24)][effort_raw$site %in% 'LM',]))
-    effort_raw_df <- do.call('rbind', list(effort_raw_dc, effort_raw_mc, effort_raw_ug, effort_raw_wc,
-                                           effort_raw_bc, effort_raw_cc, effort_raw_lm))
+    #format 'effort' by site for plotting
+    effort$site <- sapply(strsplit(effort$site_name, '\\_'), '[', 1)
+    effort_dc <- data.frame('site' = 'DC',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'DC',]))
+    effort_mc <- data.frame('site' = 'MC',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'MC',]))
+    effort_ug <- data.frame('site' = 'UG',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'UG',]))
+    effort_wc <- data.frame('site' = 'WC',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'WC',]))
+    effort_bc <- data.frame('site' = 'BC',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'BC',]))
+    effort_cc <- data.frame('site' = 'CC',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'CC',]))
+    effort_lm <- data.frame('site' = 'LM',
+                                'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'LM',]))
+    effort_df <- do.call('rbind', list(effort_dc, effort_mc, effort_ug, effort_wc,
+                                           effort_bc, effort_cc, effort_lm))
     
-    #
+    #Combine covariates with predictions
     pred_wide_any <- cbind(new_covar, 'det' = det_pred_p7any$Predicted, 'occ' = occ_pred_p7any$Predicted)
     lci_wide_any  <- cbind(new_covar, 'det' = det_pred_p7any$lower, 'occ' = occ_pred_p7any$lower)
     uci_wide_any  <- cbind(new_covar, 'det' = det_pred_p7any$upper, 'occ' = occ_pred_p7any$upper)
@@ -312,12 +342,8 @@ library(dplyr)
     lci_long_any  <- melt(lci_wide_any, id.vars = c('dist','effort','site'), value.name = 'LCI')
     uci_long_any  <- melt(uci_wide_any, id.vars = c('dist','effort','site'), value.name = 'UCI')
     
-    plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
-    plot_data_any$dist_bt   <- (plot_data_any$dist * sd(site_covars$dist_actual)) + mean(site_covars$dist_actual)
-    plot_data_any$effort_bt <- (plot_data_any$effort * sd(effort_raw_df$effort_raw, na.rm = TRUE)) + 
-      mean(effort_raw_df$effort_raw, na.rm = TRUE)
-    
-    #
+      plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
+
     pred_wide_fem <- cbind(new_covar, 'det' = det_pred_p7fem$Predicted, 'occ' = occ_pred_p7fem$Predicted)
     lci_wide_fem  <- cbind(new_covar, 'det' = det_pred_p7fem$lower, 'occ' = occ_pred_p7fem$lower)
     uci_wide_fem  <- cbind(new_covar, 'det' = det_pred_p7fem$upper, 'occ' = occ_pred_p7fem$upper)
@@ -326,12 +352,8 @@ library(dplyr)
     lci_long_fem  <- melt(lci_wide_fem, id.vars = c('dist','effort','site'), value.name = 'LCI')
     uci_long_fem  <- melt(uci_wide_fem, id.vars = c('dist','effort','site'), value.name = 'UCI')
     
-    plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
-    plot_data_fem$dist_bt   <- (plot_data_fem$dist * sd(site_covars$dist_actual)) + mean(site_covars$dist_actual)
-    plot_data_fem$effort_bt <- (plot_data_fem$effort * sd(effort_raw_df$effort_raw, na.rm = TRUE)) + 
-      mean(effort_raw_df$effort_raw, na.rm = TRUE)
+      plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
     
-    #
     pred_wide_mal <- cbind(new_covar, 'det' = det_pred_p7mal$Predicted, 'occ' = occ_pred_p7mal$Predicted)
     lci_wide_mal  <- cbind(new_covar, 'det' = det_pred_p7mal$lower, 'occ' = occ_pred_p7mal$lower)
     uci_wide_mal  <- cbind(new_covar, 'det' = det_pred_p7mal$upper, 'occ' = occ_pred_p7mal$upper)
@@ -340,19 +362,16 @@ library(dplyr)
     lci_long_mal  <- melt(lci_wide_mal, id.vars = c('dist','effort','site'), value.name = 'LCI')
     uci_long_mal  <- melt(uci_wide_mal, id.vars = c('dist','effort','site'), value.name = 'UCI')
     
-    plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
-    plot_data_mal$dist_bt   <- (plot_data_mal$dist * sd(site_covars$dist_actual)) + mean(site_covars$dist_actual)
-    plot_data_mal$effort_bt <- (plot_data_mal$effort * sd(effort_raw_df$effort_raw, na.rm = TRUE)) + 
-      mean(effort_raw_df$effort_raw, na.rm = TRUE) 
-    
+      plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
+
   #Plot    
     plot_data_any$group <- 'Any'; plot_data_fem$group <- 'Female'; plot_data_mal$group <- 'Male'
     plot_combine <- do.call('rbind', list(plot_data_any, plot_data_fem, plot_data_mal))
+    site_covars$site <- site_covars$site_name
     
     #All together
-    site_covars$site <- site_covars$site_name
-    plot_p7_dist <- ggplot(plot_combine[plot_combine$effort == 0 & plot_combine$variable %in% 'det',], 
-                              aes(x = dist_bt/1000, y = value, color = group, fill = group)) +
+    plot_p7_dist <- ggplot(plot_combine[plot_combine$effort == effort_mean & plot_combine$variable %in% 'det',], 
+                              aes(x = dist/1000, y = value, color = group, fill = group)) +
       geom_line() +
       geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
       ylim(0,1) +
@@ -363,33 +382,34 @@ library(dplyr)
       facet_grid(~ site) + theme_bw()
     plot_p7_dist
     
-    #Any
-    plot_p7any_dist <- ggplot(plot_data_any[plot_data_any$effort == 0 & plot_data_any$variable %in% 'det',], 
-                         aes(x = dist_bt/1000, y = value)) +
+    #All detections
+    plot_p7any_dist <- ggplot(plot_data_any[plot_data_any$effort == effort_mean & 
+                                              plot_data_any$variable %in% 'det',], 
+                         aes(x = dist/1000, y = value)) +
       geom_line() +
       geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3) +
-      ylim(0,1) +
+      # ylim(0,1) +
       ylab('Weekly detection probability (\u00B1 95 CI)') +
       xlab('Distance (km)') +
-      ggtitle('Any detections: p(distance + effort) psi(.)') +
+      ggtitle('All detections: p(distance + effort) psi(.)') +
       geom_rug(data = site_covars, aes(x = dist_intended/1000), inherit.aes = FALSE) +
       facet_grid(~ site) + theme_bw()
     plot_p7any_dist
     
-    plot_p7any_effort <- ggplot(plot_data_any[plot_data_any$dist == 0 & plot_data_any$variable %in% 'det',], 
-                         aes(x = effort_bt, y = value)) +
+    plot_p7any_effort <- ggplot(plot_data_any[plot_data_any$dist == mean(site_covars$dist_actual) & plot_data_any$variable %in% 'det',], 
+                         aes(x = effort, y = value)) +
       geom_line() +
       geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3) +
       ylim(0,1) +
       ylab('Weekly detection probability (\u00B1 95 CI)') +
       xlab('Effort') +
-      ggtitle('Any detections: p(distance + effort) psi(.)') +
-      geom_rug(data = effort_raw_df, aes(x = effort_raw), inherit.aes = FALSE) +
+      ggtitle('All detections: p(distance + effort) psi(.)') +
+      # geom_rug(data = effort_df, aes(x = effort), inherit.aes = FALSE) +
       facet_grid(~ site) + theme_bw()
     plot_p7any_effort
     
       #Ok, there's really just one outlier at Miller Creek with very large effort. Should truncate that
-      #There shouldn't be *this* strong of a relationsihpo with effort... we didn't actually sample out that much
+      #There shouldn't be *this* strong of a relationship with effort... we didn't actually sample out that much
     
     
 ## Time-varying 'p' ------------------------------------------------------------
@@ -491,6 +511,7 @@ library(dplyr)
       geom_point(data = det_pred_p2any_time_df, aes(x = time, y = Predicted), 
                  color = 'lightgray', size = 0.5) +
       geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Any STOC)') +
       theme_bw()
@@ -498,6 +519,7 @@ library(dplyr)
     ggplot(det_pred_p2any_time_df, aes(x = time, y = Predicted)) +
       geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
                    outlier.size = 2, notch = TRUE) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Any STOC)') +
       theme_bw()
@@ -507,6 +529,7 @@ library(dplyr)
       geom_point(data = det_pred_p2fem_time_df, aes(x = time, y = Predicted), 
                  color = 'lightgray', size = 0.5) +
       geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Female STOC)') +
       theme_bw()
@@ -514,6 +537,7 @@ library(dplyr)
     ggplot(det_pred_p2fem_time_df, aes(x = time, y = Predicted)) +
       geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
                    outlier.size = 2, notch = TRUE) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Female STOC)') +
       theme_bw()
@@ -521,8 +545,10 @@ library(dplyr)
     #Male
     ggplot(p_by_week_mal, aes(x = time, y = p_weekly_mean)) +
       geom_point(data = det_pred_p2mal_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
+                 color = 'lightgray', size = 0.5,
+                 position = position_jitter(width = 0.1)) +
       geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Male STOC)') +
       theme_bw()
@@ -530,6 +556,7 @@ library(dplyr)
     ggplot(det_pred_p2mal_time_df, aes(x = time, y = Predicted)) +
       geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
                    outlier.size = 2, notch = TRUE) +
+      ylim(0,1) +
       xlab('Week') + ylab('Detection probability') +
       ggtitle('Detection probability (Male STOC)') +
       theme_bw()
