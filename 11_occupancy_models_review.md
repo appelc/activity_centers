@@ -36,14 +36,56 @@ output:
 
 ## 
 #### Load observation-level covariate data
+##### -effort (recording minutes)
+##### -noise (mean SPL)
 
 
 ```
-## [1] 136680.6
+##         1         2        3        4        5        6        7        8
+## 1: 127668 138455.46 138455.5 138455.5 138455.5 138455.5 138455.5 139836.2
+## 2: 127668 138455.46 138455.5 138455.5 138455.5 138455.5 138455.5 139415.9
+## 3: 127668 138455.46 138455.5 138455.5 138455.5 138455.5 138455.5 139415.9
+## 4: 127668 138455.46 138455.5 138455.5 138455.5 138455.5 138455.5 139356.0
+## 5: 127668 138455.46 138455.5 138455.5 138455.5 138455.5 138455.5 139896.1
+## 6: 127668  10787.47       NA       NA       NA       NA       NA       NA
+##           9       10       11       12       13       14       15 16 17 18 19
+## 1: 142291.7 142645.1 142645.1 144505.6 146834.8 146834.8 137244.4 NA NA NA NA
+## 2: 142053.1 142645.1 142645.1 143965.5 146776.4 146834.8 137244.4 NA NA NA NA
+## 3: 142053.1 142645.1 142645.1 143965.5 146776.4 146834.8 137244.4 NA NA NA NA
+## 4: 142053.1 142645.1 142645.1 144025.4 146776.4 146834.8 137244.4 NA NA NA NA
+## 5: 142290.2 142645.1 142645.1 144505.6 146834.8 146834.8 137244.4 NA NA NA NA
+## 6:       NA       NA       NA       NA       NA       NA       NA NA NA NA NA
+##    20 21
+## 1: NA NA
+## 2: NA NA
+## 3: NA NA
+## 4: NA NA
+## 5: NA NA
+## 6: NA NA
 ```
 
 ```
-## [1] -61.15367
+##            1         2         3         4         5         6         7
+## 1: -50.21043 -50.04354 -44.99546 -50.09546 -53.29773 -52.55238 -53.90159
+## 2: -59.34671 -61.99501 -54.64603 -62.87914 -62.45850 -62.54354 -63.73719
+## 3: -62.19977 -65.77415 -55.76916 -65.48889 -66.09252 -65.63673 -65.65034
+## 4: -60.32789 -62.55601 -55.44376 -62.89864 -64.16780 -65.15896 -64.72177
+## 5: -50.84286 -52.29433 -48.68889 -52.26984 -53.61587 -52.31723 -53.91270
+## 6: -59.99070 -66.27857        NA        NA        NA        NA        NA
+##            8         9        10        11        12        13        14
+## 1: -54.19342 -54.40478 -54.72408 -53.68265 -55.48633 -55.09889 -54.15714
+## 2: -64.04195 -66.34029 -67.34980 -66.03673 -67.74959 -67.89076 -65.81466
+## 3: -63.49002 -66.48739 -70.88286 -67.71735 -69.74816 -67.52143 -64.14564
+## 4: -63.69206 -64.34957 -67.48000 -64.85265 -67.58265 -65.89805 -64.49369
+## 5: -54.97052 -55.87429 -54.72000 -55.03939 -56.77388 -56.64471 -55.66883
+## 6:        NA        NA        NA        NA        NA        NA        NA
+##           15 16 17 18 19 20 21
+## 1: -55.92038 NA NA NA NA NA NA
+## 2: -68.21272 NA NA NA NA NA NA
+## 3: -69.15916 NA NA NA NA NA NA
+## 4: -66.74744 NA NA NA NA NA NA
+## 5: -55.16122 NA NA NA NA NA NA
+## 6:        NA NA NA NA NA NA NA
 ```
 
 ##
@@ -79,6 +121,11 @@ output:
 
 ##
 #### Create input files and view naive detections
+#### 
+##### Also comparing different response variables for females and males
+##### - FNLC = four-note location calls only (no irregular calls)
+##### - FNLC/pair = FNLC or pair detections (no irregular calls)
+##### Looks like there's not much difference between "any" and FNLC/pair, so use FNLC/pair
 
 ![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-1.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-2.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-3.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-4.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-5.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-6.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-4-7.png)<!-- -->
 
@@ -362,8 +409,84 @@ output:
 
 
 ##
-#### Create marginal plots
+#### Create marginal plots (by site): p(dist + site + effort)
 ![](11_occupancy_models_review_files/figure-html/unnamed-chunk-13-1.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-13-2.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-13-3.png)<!-- -->
+## 
+## 
+Ok, there is really just one outlier at Miller Creek (MC) with very large effort. 
+Should truncate that or replace with mean.
+There shouldn't be *this* strong of a relationship with effort (it was pretty constant)
 
 
+
+##
+#### Create marginal plots (grouped): p(dist)
+![](11_occupancy_models_review_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
+
+##
+#### Create marginal plots (by nest status): p(dist + nest)
+![](11_occupancy_models_review_files/figure-html/unnamed-chunk-15-1.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-15-2.png)<!-- -->
+
+## 
+### Try models with time-varying 'p'
+
+
+```
+##                                        nPars     AIC  delta   AICwt cumltvWt
+## p(dist + site + time), psi(.)             29 2246.75   0.00 1.0e+00     1.00
+## p(dist + time), psi(.)                    23 2339.93  93.18 5.8e-21     1.00
+## p(dist + nest + time), psi(.)             24 2344.47  97.72 6.0e-22     1.00
+## p(time), psi(.)                           22 2406.17 159.42 2.4e-35     1.00
+## p(.), psi(.)}                              2 2424.98 178.23 2.0e-39     1.00
+## p(effort) + time, psi(.)                  23 2521.22 274.46 2.5e-60     1.00
+## p(dist + effort + time), psi(.)           24 2542.65 295.89 5.6e-65     1.00
+## p(dist + nest + effort + time), psi(.)    25 2544.65 297.89 2.1e-65     1.00
+## p(dist + site + effort + time), psi(.)    30 2554.65 307.89 1.4e-67     1.00
+```
+
+```
+## 
+## Call:
+## occu(formula = ~dist + time ~ 1, data = input_any)
+## 
+## Occupancy:
+##  Estimate    SE     z P(>|z|)
+##    -0.244 0.128 -1.91  0.0563
+## 
+## Detection:
+##              Estimate       SE       z  P(>|z|)
+## (Intercept)  0.246450 0.275248  0.8954 3.71e-01
+## dist        -0.000817 0.000103 -7.9091 2.59e-15
+## timewk_10    0.688715 0.307810  2.2375 2.53e-02
+## timewk_11    0.504957 0.311257  1.6223 1.05e-01
+## timewk_12    0.142984 0.320502  0.4461 6.56e-01
+## timewk_13    0.142984 0.320502  0.4461 6.56e-01
+## timewk_14    0.174586 0.321530  0.5430 5.87e-01
+## timewk_15   -0.098798 0.348251 -0.2837 7.77e-01
+## timewk_16   -0.365628 0.368243 -0.9929 3.21e-01
+## timewk_17   -0.563433 0.433799 -1.2988 1.94e-01
+## timewk_18   -0.376039 0.473544 -0.7941 4.27e-01
+## timewk_19   -0.040957 0.484860 -0.0845 9.33e-01
+## timewk_2    -0.451878 0.340730 -1.3262 1.85e-01
+## timewk_20   -0.531056 0.702231 -0.7562 4.50e-01
+## timewk_21   -0.029998 2.430153 -0.0123 9.90e-01
+## timewk_3    -0.130870 0.326588 -0.4007 6.89e-01
+## timewk_4    -0.034815 0.323342 -0.1077 9.14e-01
+## timewk_5     0.098519 0.319261  0.3086 7.58e-01
+## timewk_6     0.181734 0.317046  0.5732 5.67e-01
+## timewk_7     0.337604 0.313440  1.0771 2.81e-01
+## timewk_8     0.223731 0.316196  0.7076 4.79e-01
+## timewk_9     0.377294 0.312833  1.2061 2.28e-01
+## 
+## AIC: 2339.93
+```
+   
+##
+#### Create marginal plots (grouped): p(dist + time)
+  
+![](11_occupancy_models_review_files/figure-html/unnamed-chunk-17-1.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-17-2.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-17-3.png)<!-- -->
+
+## 
+#### Create marginal plots (by nest status): p(dist + nest + time)
+![](11_occupancy_models_review_files/figure-html/unnamed-chunk-18-1.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-18-2.png)<!-- -->![](11_occupancy_models_review_files/figure-html/unnamed-chunk-18-3.png)<!-- -->
 
