@@ -7,6 +7,7 @@ output:
     toc: true
     toc_float: true
     toc_depth: 4
+    keep_md: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -37,7 +38,7 @@ library(MASS)
 ```{r echo=FALSE}
  
   #import station summary
-  acData <- fread('../output/05_ac_2021_merged.csv')
+  acData <- fread('output/05_ac_2021_merged.csv')
   
   #keep necessary columns
   anySTOC <- acData[,c('STOC_ANY','duration','Distance','dist_intended','reproState')]
