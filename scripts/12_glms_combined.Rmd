@@ -170,55 +170,55 @@ library(lme4)
   
   plot_mod1_any
   
-  plot_mod1_fem <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksFemale/survWeeks,
-                                       weeks = weeksFemale, total = survWeeks)) +
-    geom_point(data = ac_data[ac_data$weeksFemale > 0,], #we don't want to plot 0s
-               aes(x = dist_actual/1000, y = weeksFemale / survWeeks),
-               color = 'gray70', size = 1.5) +
-    geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
-                method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
-                color = 'tomato3', fill = 'tomato1') +
-    ylim(0,1) +
-    ggtitle('Female') +
-    ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
-    theme(panel.background = element_rect(fill = 'transparent'),
-          panel.grid = element_line(color = 'gray90'),
-          axis.line = element_line(),
-          axis.title = element_text(size = 18),
-          # axis.title.x = element_blank(),
-          strip.text = element_text(size = 16),
-          axis.text = element_text(size = 16),
-          plot.title = element_text(hjust = 0.5),
-          legend.text = element_text(size = 16),
-          legend.title = element_blank(),
-          legend.position = 'none',
-          legend.background = element_rect(fill='transparent'))
-  plot_mod1_fem
-  
-  plot_mod1_male <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksMale/survWeeks,
-                                       weeks = weeksMale, total = survWeeks)) +
-    geom_point(data = ac_data[ac_data$weeksMale > 0,], #we don't want to plot 0s
-               aes(x = dist_actual/1000, y = weeksMale / survWeeks),
-               color = 'gray70', size = 1.5) +
-    geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
-                method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
-                color = 'dodgerblue4', fill = 'dodgerblue1') +
-    ylim(0,1) +
-    ggtitle('Male') +
-    ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
-    theme(panel.background = element_rect(fill = 'transparent'),
-          panel.grid = element_line(color = 'gray90'),
-          axis.line = element_line(),
-          axis.title = element_text(size = 18),
-          # axis.title.x = element_blank(),
-          strip.text = element_text(size = 16),
-          axis.text = element_text(size = 16),
-          plot.title = element_text(hjust = 0.5),
-          legend.text = element_text(size = 16),
-          legend.title = element_blank(),
-          legend.position = 'none',
-          legend.background = element_rect(fill='transparent'))
-  plot_mod1_male
+  # plot_mod1_fem <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksFemale/survWeeks,
+  #                                      weeks = weeksFemale, total = survWeeks)) +
+  #   geom_point(data = ac_data[ac_data$weeksFemale > 0,], #we don't want to plot 0s
+  #              aes(x = dist_actual/1000, y = weeksFemale / survWeeks),
+  #              color = 'gray70', size = 1.5) +
+  #   geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
+  #               method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
+  #               color = 'tomato3', fill = 'tomato1') +
+  #   ylim(0,1) +
+  #   ggtitle('Female') +
+  #   ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
+  #   theme(panel.background = element_rect(fill = 'transparent'),
+  #         panel.grid = element_line(color = 'gray90'),
+  #         axis.line = element_line(),
+  #         axis.title = element_text(size = 18),
+  #         # axis.title.x = element_blank(),
+  #         strip.text = element_text(size = 16),
+  #         axis.text = element_text(size = 16),
+  #         plot.title = element_text(hjust = 0.5),
+  #         legend.text = element_text(size = 16),
+  #         legend.title = element_blank(),
+  #         legend.position = 'none',
+  #         legend.background = element_rect(fill='transparent'))
+  # plot_mod1_fem
+  # 
+  # plot_mod1_male <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksMale/survWeeks,
+  #                                      weeks = weeksMale, total = survWeeks)) +
+  #   geom_point(data = ac_data[ac_data$weeksMale > 0,], #we don't want to plot 0s
+  #              aes(x = dist_actual/1000, y = weeksMale / survWeeks),
+  #              color = 'gray70', size = 1.5) +
+  #   geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
+  #               method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
+  #               color = 'dodgerblue4', fill = 'dodgerblue1') +
+  #   ylim(0,1) +
+  #   ggtitle('Male') +
+  #   ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
+  #   theme(panel.background = element_rect(fill = 'transparent'),
+  #         panel.grid = element_line(color = 'gray90'),
+  #         axis.line = element_line(),
+  #         axis.title = element_text(size = 18),
+  #         # axis.title.x = element_blank(),
+  #         strip.text = element_text(size = 16),
+  #         axis.text = element_text(size = 16),
+  #         plot.title = element_text(hjust = 0.5),
+  #         legend.text = element_text(size = 16),
+  #         legend.title = element_blank(),
+  #         legend.position = 'none',
+  #         legend.background = element_rect(fill='transparent'))
+  # plot_mod1_male
 
   
   #combine?
@@ -299,7 +299,9 @@ library(lme4)
 
 ```
 
+####  
 #### 2. Quasibinomial: weeks with detections ~ distance + nesting
+#### 
 ##### (nesting is binary yes/no)
 ####  
 ##### - Any detections
@@ -358,62 +360,116 @@ library(lme4)
           legend.title = element_blank(),
           legend.position = 'none',
           legend.background = element_rect(fill='transparent'))
-  
   plot_mod2_any
+  
+  
+  plot_mod2_both_a <- ggplot(ac_data_long[ac_data_long$sex %in% c('Female','Male'),], 
+                   aes(x = dist_actual/1000, y = weeks/survWeeks,
+                                     weeks = weeks, total = survWeeks, color = sex, fill = sex)) +
+    geom_point(data = ac_data_long[ac_data_long$sex %in% c('Female','Male') & 
+                                     ac_data_long$weeks > 0,],
+               size = 1.5, alpha = 0.3) +
+    geom_smooth(formula = cbind(weeks, total-weeks) ~ x,
+                method = 'glm', method.args = list(family = quasibinomial(link = 'logit'))) +
+    scale_color_manual(values = c('tomato','dodgerblue1')) +
+    scale_fill_manual(values = c('tomato','dodgerblue1')) +
+    facet_grid(~nested) +
+    ylim(0,1) +
+    ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
+    theme(panel.background = element_rect(fill = 'transparent'),
+          panel.grid = element_line(color = 'gray90'),
+          axis.line = element_line(),
+          axis.title = element_text(size = 18),
+          strip.text = element_text(size = 16),
+          axis.text = element_text(size = 16),
+          plot.title = element_text(hjust = 0.5),
+          legend.text = element_text(size = 16),
+          legend.title = element_blank(),
+          # legend.position = 'none',
+          legend.background = element_rect(fill='transparent'))
+  plot_mod2_both_a
 
-  plot_mod2_fem <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksFemale/survWeeks,
-                                       weeks = weeksFemale, total = survWeeks)) +
-    geom_point(data = ac_data[ac_data$weeksFemale > 0,], #we don't want to plot 0s
-               aes(x = dist_actual/1000, y = weeksFemale / survWeeks),
-               color = 'gray70', size = 1.5) +
-    geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
-                method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
-                color = 'tomato3', fill = 'tomato1') +
+    plot_mod2_both_b <- ggplot(ac_data_long[ac_data_long$sex %in% c('Female','Male'),],
+                               aes(x = dist_actual/1000, y = weeks/survWeeks,
+                                   weeks = weeks, total = survWeeks, color = nested, fill = nested)) +
+    geom_point(data = ac_data_long[ac_data_long$sex %in% c('Female','Male') & 
+                                     ac_data_long$weeks > 0,],
+               size = 1.5, alpha = 0.3) +
+    geom_smooth(formula = cbind(weeks, total-weeks) ~ x,
+                method = 'glm', method.args = list(family = quasibinomial(link = 'logit'))) +
+    scale_color_manual(values = c('darkgreen','purple')) +
+    scale_fill_manual(values = c('darkgreen','purple')) +
+    facet_grid(~sex) +
     ylim(0,1) +
-    ggtitle('Female') +
     ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
-    facet_grid(~nested) +
     theme(panel.background = element_rect(fill = 'transparent'),
           panel.grid = element_line(color = 'gray90'),
           axis.line = element_line(),
           axis.title = element_text(size = 18),
-          # axis.title.x = element_blank(),
           strip.text = element_text(size = 16),
           axis.text = element_text(size = 16),
           plot.title = element_text(hjust = 0.5),
           legend.text = element_text(size = 16),
           legend.title = element_blank(),
-          legend.position = 'none',
+          # legend.position = 'none',
           legend.background = element_rect(fill='transparent'))
+    plot_mod2_both_b
   
-  plot_mod2_fem
+## Plot female/male separately
   
-  
-  plot_mod2_male <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksMale/survWeeks,
-                                       weeks = weeksMale, total = survWeeks)) +
-    geom_point(data = ac_data[ac_data$weeksMale > 0,], #we don't want to plot 0s
-               aes(x = dist_actual/1000, y = weeksMale / survWeeks),
-               color = 'gray70', size = 1.5) +
-    geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
-                method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
-                color = 'dodgerblue4', fill = 'dodgerblue1') +
-    ylim(0,1) +
-    ggtitle('Male') +
-    ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
-    facet_grid(~nested) +
-    theme(panel.background = element_rect(fill = 'transparent'),
-          panel.grid = element_line(color = 'gray90'),
-          axis.line = element_line(),
-          axis.title = element_text(size = 18),
-          # axis.title.x = element_blank(),
-          strip.text = element_text(size = 16),
-          axis.text = element_text(size = 16),
-          plot.title = element_text(hjust = 0.5),
-          legend.text = element_text(size = 16),
-          legend.title = element_blank(),
-          legend.position = 'none',
-          legend.background = element_rect(fill='transparent'))
-  
-  plot_mod2_male
+#   plot_mod2_fem <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksFemale/survWeeks,
+#                                        weeks = weeksFemale, total = survWeeks)) +
+#     geom_point(data = ac_data[ac_data$weeksFemale > 0,], #we don't want to plot 0s
+#                aes(x = dist_actual/1000, y = weeksFemale / survWeeks),
+#                color = 'gray70', size = 1.5) +
+#     geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
+#                 method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
+#                 color = 'tomato3', fill = 'tomato1') +
+#     ylim(0,1) +
+#     ggtitle('Female') +
+#     ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
+#     facet_grid(~nested) +
+#     theme(panel.background = element_rect(fill = 'transparent'),
+#           panel.grid = element_line(color = 'gray90'),
+#           axis.line = element_line(),
+#           axis.title = element_text(size = 18),
+#           # axis.title.x = element_blank(),
+#           strip.text = element_text(size = 16),
+#           axis.text = element_text(size = 16),
+#           plot.title = element_text(hjust = 0.5),
+#           legend.text = element_text(size = 16),
+#           legend.title = element_blank(),
+#           legend.position = 'none',
+#           legend.background = element_rect(fill='transparent'))
+#   
+#   plot_mod2_fem
+#   
+#   
+#   plot_mod2_male <- ggplot(ac_data, aes(x = dist_actual/1000, y = weeksMale/survWeeks,
+#                                        weeks = weeksMale, total = survWeeks)) +
+#     geom_point(data = ac_data[ac_data$weeksMale > 0,], #we don't want to plot 0s
+#                aes(x = dist_actual/1000, y = weeksMale / survWeeks),
+#                color = 'gray70', size = 1.5) +
+#     geom_smooth(formula = cbind(weeks, total-weeks) ~ x, 
+#                 method = 'glm', method.args = list(family = quasibinomial(link = 'logit')),
+#                 color = 'dodgerblue4', fill = 'dodgerblue1') +
+#     ylim(0,1) +
+#     ggtitle('Male') +
+#     ylab('Proportion of weeks with detection') + xlab('Distance from center (km)') +
+#     facet_grid(~nested) +
+#     theme(panel.background = element_rect(fill = 'transparent'),
+#           panel.grid = element_line(color = 'gray90'),
+#           axis.line = element_line(),
+#           axis.title = element_text(size = 18),
+#           # axis.title.x = element_blank(),
+#           strip.text = element_text(size = 16),
+#           axis.text = element_text(size = 16),
+#           plot.title = element_text(hjust = 0.5),
+#           legend.text = element_text(size = 16),
+#           legend.title = element_blank(),
+#           legend.position = 'none',
+#           legend.background = element_rect(fill='transparent'))
+#   
+#   plot_mod2_male
   
 ```

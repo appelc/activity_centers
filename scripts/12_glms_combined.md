@@ -142,12 +142,14 @@ output:
 
 #### Plot:
   
-![](12_glms_combined_files/figure-html/unnamed-chunk-7-1.png)<!-- -->![](12_glms_combined_files/figure-html/unnamed-chunk-7-2.png)<!-- -->![](12_glms_combined_files/figure-html/unnamed-chunk-7-3.png)<!-- -->![](12_glms_combined_files/figure-html/unnamed-chunk-7-4.png)<!-- -->
+![](12_glms_combined_files/figure-html/unnamed-chunk-7-1.png)<!-- -->![](12_glms_combined_files/figure-html/unnamed-chunk-7-2.png)<!-- -->
 
 
 
 
+####  
 #### 2. Quasibinomial: weeks with detections ~ distance + nesting
+#### 
 ##### (nesting is binary yes/no)
 ####  
 ##### - Any detections
