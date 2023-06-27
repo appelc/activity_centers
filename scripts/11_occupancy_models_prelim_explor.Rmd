@@ -1,0 +1,269 @@
+---
+title: "Activity center occupancy models -- preliminary exploration"
+author: "Cara"
+date: "`r Sys.Date()`"
+output:   
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load-packages, include=FALSE}
+library(data.table)
+library(unmarked)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(kableExtra)
+```
+
+--------------------------------------------------------------------------------
+## 
+#### Load site-level covariate data
+
+```{r echo=FALSE}
+
+  ## Site-level covariates
+  site_covars <- fread('output/10_occ_covariates/10_site_level_2021-2022.csv')
+
+    ## Make sure they're sorted alphabetically by site
+    site_covars$year_site <- paste(site_covars$year, site_covars$site_stn, sep = '_')
+    site_covars <- site_covars[order(site_covars$year_site),]
+  
+    #also need Barred owl and NR habitat covariates
+    
+    head(site_covars[,c('year_site','site_name','repro_state','nested','duration','dist_actual')])
+      
+```
+
+## 
+#### Load observation-level covariate data
+##### -effort (recording minutes)
+##### -noise (mean SPL)
+
+```{r echo=FALSE}
+
+  ## Observation-level covariates
+  effort <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22.csv', header = TRUE)
+  noise  <- fread('output/10_occ_covariates/10_noise_weekly_raw_21-22.csv', header = TRUE)
+  
+    ## Make sure sites are sorted alphabetically, then delete that column
+    effort$year_site <- paste(effort$year, effort$site_name, sep = '_')
+      effort <- effort[order(effort$year_site),]
+      effort_covar <- effort[,-c('V1','site_name','year','year_site')]
+      head(effort_covar)
+        
+    noise$year_site <- paste(noise$year, noise$site_name, sep = '_')
+      noise <- noise[order(noise$year_site),]
+      noise_covar <- noise[,-c('V1','site_name','year','year_site')]
+      head(noise_covar)
+      
+    ## Replace NAs with mean value (0)
+    effort_mean <- mean(unlist(effort_covar), na.rm = TRUE)
+      effort_covar[is.na(effort_covar)] <- effort_mean
+    noise_mean <- mean(unlist(noise_covar),na.rm = TRUE)
+      noise_covar[is.na(noise_covar)] <- noise_mean
+    
+    ## Format some site-level as observation-level
+    dist_obs_covar <- matrix(data = site_covars$dist_actual, nrow = 291, ncol = 21)
+    nest_obs_covar <- matrix(data = site_covars$nested, nrow = 291, ncol = 21)
+    site_obs_covar <- matrix(data = site_covars$site_name, nrow = 291, ncol = 21)
+    
+    ## Create time-varying covariate
+    time <- matrix(paste('wk', rep(1:ncol(effort_covar)), sep = '_'),
+                   nrow = nrow(effort_covar),
+                   ncol = ncol(effort_covar), 
+                   byrow = TRUE)
+    
+    ## Format time-varying covariates by site for plotting (better way? group_by?)
+    effort$site <- sapply(strsplit(effort$site_name, '\\_'), '[', 1)
+      effort_dc <- data.frame('site' = 'DC',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'DC',]))
+      effort_mc <- data.frame('site' = 'MC',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'MC',]))
+      effort_ug <- data.frame('site' = 'UG',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'UG',]))
+      effort_wc <- data.frame('site' = 'WC',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'WC',]))
+      effort_bc <- data.frame('site' = 'BC',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'BC',]))
+      effort_cc <- data.frame('site' = 'CC',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'CC',]))
+      effort_lm <- data.frame('site' = 'LM',
+                              'effort' = unlist(effort[, c(3:22,24)][effort$site %in% 'LM',]))
+      effort_df <- do.call('rbind', list(effort_dc, effort_mc, effort_ug, effort_wc,
+                                             effort_bc, effort_cc, effort_lm))
+    
+    noise$site <- sapply(strsplit(noise$site_name, '\\_'), '[', 1)
+      noise_dc <- data.frame('site' = 'DC',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'DC',]))
+      noise_mc <- data.frame('site' = 'MC',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'MC',]))
+      noise_ug <- data.frame('site' = 'UG',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'UG',]))
+      noise_wc <- data.frame('site' = 'WC',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'WC',]))
+      noise_bc <- data.frame('site' = 'BC',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'BC',]))
+      noise_cc <- data.frame('site' = 'CC',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'CC',]))
+      noise_lm <- data.frame('site' = 'LM',
+                                  'noise' = unlist(noise[, c(3:22,24)][noise$site %in% 'LM',]))
+      noise_df <- do.call('rbind', list(noise_dc, noise_mc, noise_ug, noise_wc,
+                                             noise_bc, noise_cc, noise_lm))
+      
+      #save
+      write.csv(effort_df, 'output/10_occ_covariates/10_effort_weekly_raw_21-22_long.csv')
+      write.csv(noise_df, 'output/10_occ_covariates/10_noise_weekly_raw_21-22_long.csv')
+      
+```
+
+##
+#### Load detection histories
+
+```{r, echo=FALSE}
+    
+  ## Any detections of all owls, females, and males
+  dh_any    <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocAny_left.csv')
+  dh_female <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocFemale_left.csv')
+  dh_male   <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocMale_left.csv')
+  
+    #Example:
+    dh_any
+    
+  ## FNLC and pair detections only for females and males
+  dh_female_fnlcp <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocFemaleFNLCorPair_left.csv')
+  dh_male_fnlcp   <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocMaleFNLCorPair_left.csv')
+  dh_female_fnlc <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocFemaleFNLC_left.csv')
+  dh_male_fnlc   <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocMaleFNLC_left.csv')
+  
+  ## Make sure sites are sorted alphabetically, then delete that column  
+  dh_any    <- dh_any[order(dh_any$V1,)];      dh_any <- dh_any[,-c('V1')]
+  dh_female <- dh_female[order(dh_female$V1)]; dh_female <- dh_female[,-c('V1')]
+  dh_male   <- dh_male[order(dh_male$V1)];     dh_male <- dh_male[,-c('V1')]
+  dh_female_fnlcp <- dh_female_fnlcp[order(dh_female_fnlcp$V1)]; 
+  dh_female_fnlcp <- dh_female_fnlcp[,-c('V1')]
+  dh_male_fnlcp   <- dh_male_fnlcp[order(dh_male_fnlcp$V1)];     
+  dh_male_fnlcp <- dh_male_fnlcp[,-c('V1')]
+  dh_female_fnlc <- dh_female_fnlc[order(dh_female_fnlc$V1)]; 
+  dh_female_fnlc <- dh_female_fnlc[,-c('V1')]  
+  dh_male_fnlc   <- dh_male_fnlc[order(dh_male_fnlc$V1)];     
+  dh_male_fnlc <- dh_male_fnlc[,-c('V1')]
+
+```
+
+##
+#### Create input files and view naive detections
+#### 
+##### Also comparing different response variables for females and males
+##### - FNLC = four-note location calls only (no irregular calls)
+##### - FNLC/pair = FNLC or pair detections (no irregular calls)
+##### Looks like there's not much difference between "any" and FNLC/pair, so use FNLC/pair
+
+```{r echo=FALSE, warning=FALSE}
+
+  input_any <- unmarkedFrameOccu(y = dh_any, obsCovs = list(effort = effort_covar,
+                                                            noise = noise_covar,
+                                                            dist = dist_obs_covar,
+                                                            nest = nest_obs_covar,
+                                                            site = site_obs_covar, 
+                                                            time = time), siteCovs = site_covars)
+    
+  input_female <- unmarkedFrameOccu(y = dh_female, obsCovs = list(effort = effort_covar,
+                                                                  noise = noise_covar,
+                                                                  dist = dist_obs_covar,
+                                                                  nest = nest_obs_covar,
+                                                                  site = site_obs_covar,
+                                                                  time = time), siteCovs = site_covars)
+     
+  input_female_fnlcp <- unmarkedFrameOccu(y = dh_female_fnlcp, obsCovs = list(effort = effort_covar,
+                                                                  noise = noise_covar,
+                                                                  dist = dist_obs_covar,
+                                                                  nest = nest_obs_covar,
+                                                                  site = site_obs_covar,
+                                                                  time = time), siteCovs = site_covars)
+   
+  input_female_fnlc <- unmarkedFrameOccu(y = dh_female_fnlc, obsCovs = list(effort = effort_covar,
+                                                                            noise = noise_covar,
+                                                                            dist = dist_obs_covar,
+                                                                            nest = nest_obs_covar,
+                                                                            site = site_obs_covar,
+                                                                            time = time), 
+                                         siteCovs = site_covars)
+    
+  input_male <- unmarkedFrameOccu(y = dh_male, obsCovs = list(effort = effort_covar,
+                                                              noise = noise_covar,
+                                                              dist = dist_obs_covar,
+                                                              nest = nest_obs_covar,
+                                                              site = site_obs_covar,
+                                                              time = time), siteCovs = site_covars) 
+    
+  input_male_fnlcp <- unmarkedFrameOccu(y = dh_male_fnlcp, obsCovs = list(effort = effort_covar,
+                                                              noise = noise_covar,
+                                                              dist = dist_obs_covar,
+                                                              nest = nest_obs_covar,
+                                                              site = site_obs_covar,
+                                                              time = time), siteCovs = site_covars)  
+    
+  input_male_fnlc <- unmarkedFrameOccu(y = dh_male_fnlc, obsCovs = list(effort = effort_covar,
+                                                                        noise = noise_covar,
+                                                                        dist = dist_obs_covar,
+                                                                        nest = nest_obs_covar,
+                                                                        site = site_obs_covar,
+                                                                        time = time), siteCovs = site_covars)  
+  
+  #View naive occupancy rates
+  naive <- data.frame('detection_type' = c('All STOC', 
+                                           'Female STOC (all calls)', 'Female STOC (FNLC/pair)', 
+                                           'Female STOC (FNLC only)','Male STOC (all calls)',
+                                           'Male STOC (FNLC/pair)','Male STOC (FNLC only)'), 
+                      'naive_occupancy' = c(sum(rowSums(input_any@y, na.rm = TRUE) > 0) / nrow(input_any@y),
+                                         sum(rowSums(input_female@y, na.rm = TRUE) > 0) / nrow(input_female@y),
+                                         sum(rowSums(input_female_fnlcp@y,
+                                                     na.rm=TRUE)>0)/nrow(input_female_fnlcp@y),
+                                         sum(rowSums(input_female_fnlc@y,
+                                                     na.rm=TRUE)>0)/nrow(input_female_fnlc@y),
+                                         sum(rowSums(input_male@y, na.rm = TRUE) > 0) / nrow(input_male@y),
+                                         sum(rowSums(input_male_fnlcp@y, na.rm = TRUE) > 0) /
+                                           nrow(input_male_fnlcp@y),
+                                         sum(rowSums(input_male_fnlc@y, na.rm = TRUE) > 0) /
+                                           nrow(input_male_fnlc@y)))
+  
+  #View detection history plots
+  plot(input_any, main = paste('All STOC \n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'All STOC',]$naive_occupancy, 2), ')', 
+                               sep = ''))
+  plot(input_female, main = paste('Female STOC (any)\n (naive occ = ', 
+                                  round(naive[naive$detection_type %in% 'Female STOC (all calls)',]$naive_occupancy,
+                                        2),')',
+                                  sep = ''))
+  plot(input_female_fnlcp, main = paste('Female STOC (FNLC/pair)\n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'Female STOC (FNLC/pair)',]$naive_occupancy, 2),
+                               ')', sep = ''))
+  plot(input_female_fnlc, main = paste('Female STOC (FNLC only)\n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'Female STOC (FNLC only)',]$naive_occupancy, 2),
+                               ')', sep = ''))
+  plot(input_male, main = paste('Male STOC (any)\n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'Male STOC (all calls)',]$naive_occupancy, 2),
+                               ')', sep = ''))
+  plot(input_male_fnlcp, main = paste('Male STOC (FNLC/pair) \n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'Male STOC (FNLC/pair)',]$naive_occupancy, 2),
+                               ')', sep = ''))
+  plot(input_male_fnlc, main = paste('Male STOC (FNLC only) \n (naive occ = ', 
+                               round(naive[naive$detection_type %in% 'Male STOC (FNLC only)',]$naive_occupancy, 2),
+                               ')', sep = ''))
+  
+  # naive %>%
+  #   kbl(digits = 3) %>%
+  #   kable_styling(bootstrap_options = 'striped', font_size = 14, full_width = FALSE, position = 'left')
+  
+```
+
+##
