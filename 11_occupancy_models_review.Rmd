@@ -21,128 +21,29 @@ library(ggplot2)
 library(reshape2)
 library(dplyr)
 library(kableExtra)
+library(tidyverse)
 ```
 
 --------------------------------------------------------------------------------
 
-### Occupancy models for analyzing spotted owl activity center ("big grid") data from 2021-2022
+### Occupancy models for analyzing spotted owl activity center ("big grid") data from 2021 and 2022
 
 
 --------------------------------------------------------------------------------
-## 
-#### Load site-level covariate data
-
-```{r echo=FALSE}
-
-  ## Site-level covariates
-  site_covars <- fread('output/10_occ_covariates/10_site_level_2021-2022.csv')
-
-    ## Make sure they're sorted alphabetically by site
-    site_covars$year_site <- paste(site_covars$year, site_covars$site_stn, sep = '_')
-    site_covars <- site_covars[order(site_covars$year_site),]
-  
-    #also need Barred owl and NR habitat covariates
-    
-    head(site_covars[,c('year_site','site_name','repro_state','nested','duration','dist_actual')])
-    
-    #create a version without CC (site with single female)
-    site_covars_noCC <- site_covars[!site_covars$site_name %in% 'CC',]
-    
-    
-  ## Source functions
-    source('scripts/11_occ_mod_functions.R')
-      
-```
-
-## 
-#### Load observation-level covariate data
-##### -effort (recording minutes)
-##### -noise (mean SPL)
-
-```{r echo=FALSE}
-
-  ## Observation-level covariates
-  effort <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22.csv', header = TRUE)
-  noise  <- fread('output/10_occ_covariates/10_noise_weekly_raw_21-22.csv', header = TRUE)
-  
-    ## Make sure sites are sorted alphabetically, then delete that column
-    effort$year_site <- paste(effort$year, effort$site_name, sep = '_')
-      effort <- effort[order(effort$year_site),]
-      effort_covar <- effort[,-c('V1','site_name','year','year_site')]
-      head(effort_covar)
-        
-      #get rid of MC12?? 
-      
-    noise$year_site <- paste(noise$year, noise$site_name, sep = '_')
-      noise <- noise[order(noise$year_site),]
-      noise_covar <- noise[,-c('V1','site_name','year','year_site')]
-      head(noise_covar)
-    
-      #create versions without CC
-      effort_noCC <- effort[!grepl('CC', effort$site_name),]
-      effort_covar_noCC <- effort_noCC[,-c('V1','site_name','year','year_site')]
-      
-      noise_noCC <- noise[!grepl('CC', noise$site_name),]
-      noise_covar_noCC <- noise_noCC[,-c('V1','site_name','year','year_site')]
-        
-    ## Replace NAs with mean value (0)
-    effort_mean <- mean(unlist(effort_covar), na.rm = TRUE)
-      effort_covar[is.na(effort_covar)] <- effort_mean
-    noise_mean <- mean(unlist(noise_covar),na.rm = TRUE)
-      noise_covar[is.na(noise_covar)] <- noise_mean
-      
-      #for versions without CC
-      effort_noCC_mean <- mean(unlist(effort_covar_noCC), na.rm = TRUE)
-        effort_covar_noCC[is.na(effort_covar_noCC)] <- effort_noCC_mean
-      noise_noCC_mean <- mean(unlist(noise_covar_noCC),na.rm = TRUE)
-        noise_covar_noCC[is.na(noise_covar_noCC)] <- noise_noCC_mean
-      
-    
-    ## Format some site-level as observation-level
-    dist_obs_covar <- matrix(data = site_covars$dist_actual, nrow = 291, ncol = 21)
-    nest_obs_covar <- matrix(data = site_covars$nested, nrow = 291, ncol = 21)
-    site_obs_covar <- matrix(data = site_covars$site_name, nrow = 291, ncol = 21)
-    
-      #without CC
-      dist_obs_covar_noCC <- matrix(data = site_covars_noCC$dist_actual, nrow = 256, ncol = 21)
-      nest_obs_covar_noCC <- matrix(data = site_covars_noCC$nested, nrow = 256, ncol = 21)
-      site_obs_covar_noCC <- matrix(data = site_covars_noCC$site_name, nrow = 256, ncol = 21)
-      
-    
-    ## Create time-varying covariate
-    time <- matrix(paste('wk', rep(1:ncol(effort_covar)), sep = '_'),
-                   nrow = nrow(effort_covar),
-                   ncol = ncol(effort_covar), 
-                   byrow = TRUE)
-    
-    time_noCC <- matrix(paste('wk', rep(1:ncol(effort_covar_noCC)), sep = '_'),
-                        nrow = nrow(effort_covar_noCC),
-                        ncol = ncol(effort_covar_noCC), 
-                        byrow = TRUE)
-    
-    ## Read in pre-formatted long-format observation-level covariates
-    effort_df <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22_long.csv', header = TRUE)
-    noise_df <- fread('output/10_occ_covariates/10_noise_weekly_raw_21-22_long.csv', header = TRUE)
-    
-    #create versions without CC
-    effort_df_noCC <- effort_df[!effort_df$site %in% 'CC',]
-    noise_df_noCC  <- noise_df[!noise_df$site %in% 'CC',]
-    
-    
-```
-
 ##
-#### Load detection histories
-
+#### - Load detection histories  
 ```{r echo=FALSE}
     
-  ## Any detections of all owls, females (FNLCP), and males (FNLCP)
-  dh_any_csv    <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocAny_left.csv')
-  dh_female_csv <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocFemaleFNLCorPair_left.csv')
-  dh_male_csv   <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocMaleFNLCorPair_left.csv')
-  
+  ## Any detections of all owls, females (FNLCP), and males (FNLCP) -- staggered entry, not left-justified
+  # dh_any_csv    <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocAny_left.csv')
+  # dh_female_csv <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocFemaleFNLCorPair_left.csv')
+  # dh_male_csv   <- fread('output/08_weekly_dethist_left/08_dh_ac_combined_stocMaleFNLCorPair_left.csv')
+  dh_any_csv    <- fread('output/08_weekly_dethist_stag_both/08_dh_ac_combined_stocAny_stag.csv')
+  dh_female_csv <- fread('output/08_weekly_dethist_stag_both/08_dh_ac_combined_stocFemaleFNLCorPair_stag.csv')
+  dh_male_csv   <- fread('output/08_weekly_dethist_stag_both/08_dh_ac_combined_stocMaleFNLCorPair_stag.csv')
+
     #Example:
-    dh_any
+    dh_any_csv
  
   ## Make sure sites are sorted alphabetically, then delete that column  
   dh_any    <- dh_any_csv[order(dh_any_csv$V1),]; dh_any <- dh_any_csv[,-c('V1')]
@@ -160,72 +61,244 @@ library(kableExtra)
   
   
 ```
+  
+  
+## 
+#### - Load site-level covariate data 
+```{r echo=FALSE}
+
+  ## Site-level covariates
+  site_covars <- fread('output/10_occ_covariates/10_site_level_2021-2022.csv')
+
+    ## Make sure they're sorted alphabetically by site
+    site_covars$year_site <- paste(site_covars$year, site_covars$site_stn, sep = '_')
+    site_covars <- site_covars[order(site_covars$year_site),]
+  
+    #create a version without CC (site with single female)
+    site_covars_noCC <- site_covars[!site_covars$site_name %in% 'CC',]
+    
+    #view
+    head(site_covars[,c('year_site','site_name','repro_state','nested','duration','dist_actual')])
+    tail(site_covars[,c('year_site','site_name','repro_state','nested','duration','dist_actual')])
+    
+  ## Source function I wrote to make marginal plots using 'predict' function 
+    source('scripts/11_occ_mod_functions.R')
+      
+```
+
 
 ##
-#### Create input files and view naive detections
-#### 
+#### - Load observation-level covariate data
+```{r echo=FALSE}
+
+  ## Observation-level covariates
+  effort <- fread('output/10_occ_covariates/10_effort_weekly_raw_21-22.csv', header = TRUE)
+  noise  <- fread('output/10_occ_covariates/10_noise_weekly_raw_21-22.csv', header = TRUE)
+  stva_t <- fread('output/10_occ_covariates/10_stva_weekly_raw_21-22.csv', header = TRUE)
+  stva_d <- fread('output/10_occ_covariates/10_stva_daysPerWeek_raw_21-22.csv', header = TRUE)
+    
+    ## Make sure sites are sorted alphabetically, then delete that column
+    effort$year_site <- paste(effort$year, effort$site_name, sep = '_')
+      effort <- effort[order(effort$year_site),]
+      effort_covar <- effort[,-c('V1','site_name','year','year_site')]
+      
+    noise$year_site <- paste(noise$year, noise$site_name, sep = '_')
+      noise <- noise[order(noise$year_site),]
+      noise_covar <- noise[,-c('V1','site_name','year','year_site')]
+    
+    stva_t$year_site <- paste(stva_t$year, stva_t$Site, sep = '_')
+      stva_t <- stva_t[order(stva_t$year_site),]
+      stva_t_covar <- stva_t[,-c('V1','Site','year','year_site')]
+
+    stva_d$year_site <- paste(stva_d$year, stva_d$Site, sep = '_')  
+      stva_d <- stva_d[order(stva_d$year_site),]    
+      stva_d_covar <- stva_d[,-c('V1','Site','year','year_site')]
+
+      ## create versions without CC
+      effort_noCC <- effort[!grepl('CC', effort$site_name),]
+      effort_covar_noCC <- effort_noCC[,-c('V1','site_name','year','year_site')]
+      
+      noise_noCC <- noise[!grepl('CC', noise$site_name),]
+      noise_covar_noCC <- noise_noCC[,-c('V1','site_name','year','year_site')]
+      
+      stva_t_noCC <- stva_t[!grepl('CC', stva_t$Site),]
+      stva_t_covar_noCC <- stva_t_noCC[,-c('V1','Site','year','year_site')]
+    
+      stva_d_noCC <- stva_d[!grepl('CC', stva_d$Site),]
+      stva_d_covar_noCC <- stva_d_noCC[,-c('V1','Site','year','year_site')]
+          
+    ## Replace NAs with mean value (0)
+    effort_mean <- mean(unlist(effort_covar), na.rm = TRUE)
+      effort_covar[is.na(effort_covar)] <- effort_mean
+    noise_mean <- mean(unlist(noise_covar), na.rm = TRUE)
+      noise_covar[is.na(noise_covar)] <- noise_mean
+    stva_t_mean <- mean(unlist(stva_t_covar), na.rm = TRUE)
+      stva_t_covar[is.na(stva_t_covar)] <- stva_t_mean
+    stva_d_mean <- mean(unlist(stva_d_covar), na.rm = TRUE) #mean not the best for this?
+      stva_d_covar[is.na(stva_d_covar)] <- stva_d_mean
+      
+      #for versions without CC
+      effort_noCC_mean <- mean(unlist(effort_covar_noCC), na.rm = TRUE)
+        effort_covar_noCC[is.na(effort_covar_noCC)] <- effort_noCC_mean
+      noise_noCC_mean <- mean(unlist(noise_covar_noCC), na.rm = TRUE)
+        noise_covar_noCC[is.na(noise_covar_noCC)] <- noise_noCC_mean
+      stva_t_noCC_mean <- mean(unlist(stva_t_covar_noCC), na.rm = TRUE)
+        stva_t_covar_noCC[is.na(stva_t_covar_noCC)] <- stva_t_noCC_mean
+      stva_d_noCC_mean <- mean(unlist(stva_d_covar_noCC), na.rm = TRUE)
+        stva_d_covar_noCC[is.na(stva_d_covar_noCC)] <- stva_d_noCC_mean
+        
+    ## Format some site-level as observation-level
+    dist_obs_covar <- matrix(data = site_covars$dist_actual, nrow = 291, ncol = 22)
+    nest_obs_covar <- matrix(data = site_covars$nested, nrow = 291, ncol = 22)
+    site_obs_covar <- matrix(data = site_covars$site_name, nrow = 291, ncol = 22)
+    
+      #without CC
+      dist_obs_covar_noCC <- matrix(data = site_covars_noCC$dist_actual, nrow = 256, ncol = 22)
+      nest_obs_covar_noCC <- matrix(data = site_covars_noCC$nested, nrow = 256, ncol = 22)
+      site_obs_covar_noCC <- matrix(data = site_covars_noCC$site_name, nrow = 256, ncol = 22)
+      
+    
+    ## Create time-varying covariate (each week as factor)
+    timeFactor <- matrix(paste('wk', rep(1:ncol(effort_covar)), sep = '_'),
+                         nrow = nrow(effort_covar),
+                         ncol = ncol(effort_covar), 
+                         byrow = TRUE)
+    
+    timeFactor_noCC <- matrix(paste('wk', rep(1:ncol(effort_covar_noCC)), sep = '_'),
+                              nrow = nrow(effort_covar_noCC),
+                              ncol = ncol(effort_covar_noCC), 
+                              byrow = TRUE)
+    
+    ## Create time-varying covariate (linear trend)
+    timeTrend <- matrix(rep(1:ncol(effort_covar), nrow(effort_covar)), 
+                        nrow = nrow(effort_covar), ncol = ncol(effort_covar), byrow = TRUE)
+    timeTrend_noCC <- matrix(rep(1:ncol(effort_covar_noCC), nrow(effort_covar_noCC)), 
+                             nrow = nrow(effort_covar_noCC), ncol = ncol(effort_covar_noCC), byrow = TRUE)
+    
+      ## Create long-format observation-level covariates for plotting
+      effort$site <- sapply(strsplit(effort$site_name, '\\_'), '[', 1)
+      effort_df <- gather(effort[,-c('V1','site_name','year','year_site')], week, effort, 1:22)
+      
+      noise$site <- sapply(strsplit(noise$site_name, '\\_'), '[', 1)
+      noise_df <- gather(noise[,-c('V1','site_name','year','year_site')], week, noise, 1:22)
+    
+      stva_d$study <- sapply(strsplit(stva_d$Site, '\\_'), '[', 1)
+      stva_d_df <- gather(stva_d[,-c('V1','Site','year','year_site')], week, stva_d, 1:22)
+        colnames(stva_d_df)[1] <- 'site'
+      
+      stva_t$study <- sapply(strsplit(stva_t$Site, '\\_'), '[', 1)  
+      stva_t_df <- gather(stva_t[,-c('V1','Site','year','year_site')], week, stva_t, 1:22)
+        colnames(stva_t_df)[1] <- 'site'
+      
+    #create versions without CC
+    effort_df_noCC <- effort_df[!effort_df$site %in% 'CC',]
+    noise_df_noCC  <- noise_df[!noise_df$site %in% 'CC',]
+    stva_d_df_noCC <- stva_d_df[!stva_d_df$site %in% 'CC',]
+    stva_t_df_noCC <- stva_t_df[!stva_t_df$site %in% 'CC',]
+    
+```
+
+
+```{r}
+  #effort (recording minutes per week)
+    head(effort_covar)
+
+  #noise (mean SPL per week)
+    head(noise_covar)
+    
+  #barred owl (total detections per week)
+    head(stva_t_covar)
+    
+  #barred owl (days with detections per week)
+    head(stva_d_covar)
+
+```
+
+
+##  
+#### - Create input files 
 ```{r echo=FALSE, warning=FALSE}
 
   input_any <- unmarkedFrameOccu(y = dh_any, obsCovs = list(effort = effort_covar,
                                                             noise = noise_covar,
+                                                            bo_t = stva_t_covar,
+                                                            bo_d = stva_d_covar,
                                                             dist = dist_obs_covar,
                                                             nest = nest_obs_covar,
                                                             site = site_obs_covar, 
-                                                            time = time), 
+                                                            week = timeFactor,
+                                                            time = timeTrend), 
                                  siteCovs = site_covars)
     
   input_female <- unmarkedFrameOccu(y = dh_female, obsCovs = list(effort = effort_covar,
                                                                   noise = noise_covar,
+                                                                  bo_t = stva_t_covar,
+                                                                  bo_d = stva_d_covar,
                                                                   dist = dist_obs_covar,
                                                                   nest = nest_obs_covar,
                                                                   site = site_obs_covar,
-                                                                  time = time), 
+                                                                  week = timeFactor,
+                                                                  time = timeTrend), 
                                     siteCovs = site_covars)
      
 
   input_male <- unmarkedFrameOccu(y = dh_male, obsCovs = list(effort = effort_covar,
                                                               noise = noise_covar,
+                                                              bo_t = stva_t_covar,
+                                                              bo_d = stva_d_covar,
                                                               dist = dist_obs_covar,
                                                               nest = nest_obs_covar,
                                                               site = site_obs_covar,
-                                                              time = time), 
+                                                              week = timeFactor,
+                                                              time = timeTrend), 
                                   siteCovs = site_covars) 
   
   ## Create inputs without CC site
   input_any_noCC <- unmarkedFrameOccu(y = dh_any_noCC, obsCovs = list(effort = effort_covar_noCC,
                                                             noise = noise_covar_noCC,
+                                                            bo_t = stva_t_covar_noCC,
+                                                            bo_d = stva_d_covar_noCC,
                                                             dist = dist_obs_covar_noCC,
                                                             nest = nest_obs_covar_noCC,
                                                             site = site_obs_covar_noCC, 
-                                                            time = time_noCC), 
+                                                            week = timeFactor_noCC,
+                                                            time = timeTrend_noCC), 
                                  siteCovs = site_covars_noCC)
   
   input_female_noCC <- unmarkedFrameOccu(y = dh_female_noCC, obsCovs = list(effort = effort_covar_noCC,
                                                                   noise = noise_covar_noCC,
+                                                                  bo_t = stva_t_covar_noCC,
+                                                                  bo_d = stva_d_covar_noCC,
                                                                   dist = dist_obs_covar_noCC,
                                                                   nest = nest_obs_covar_noCC,
                                                                   site = site_obs_covar_noCC,
-                                                                  time = time_noCC), 
+                                                                  week = timeFactor_noCC,
+                                                                  time = timeTrend_noCC), 
                                     siteCovs = site_covars_noCC)
   
   
   input_male_noCC <- unmarkedFrameOccu(y = dh_male_noCC, obsCovs = list(effort = effort_covar_noCC,
                                                               noise = noise_covar_noCC,
+                                                              bo_t = stva_t_covar_noCC,
+                                                              bo_d = stva_d_covar_noCC,
                                                               dist = dist_obs_covar_noCC,
                                                               nest = nest_obs_covar_noCC,
                                                               site = site_obs_covar_noCC,
-                                                              time = time_noCC), 
+                                                              week = timeFactor_noCC,
+                                                              time = timeTrend_noCC), 
                                   siteCovs = site_covars_noCC) 
   
   
 
 ```
 
-##
-#### Run and compare models (constant psi)
 
-##### - All detections
-```{r echo=FALSE}
+## 
+#### - Run and compare models (constant psi) 
+```{r echo=FALSE, warning=FALSE}
+
+## ALL DETECTIONS  
+
   #no time component  
     p1_any <- occu(~1                                          ~1, data = input_any)
     p2_any <- occu(~scale(dist)                                ~1, data = input_any)
@@ -236,56 +309,173 @@ library(kableExtra)
     p7_any <- occu(~scale(dist) + scale(noise) + nest          ~1, data = input_any)
     p8_any <- occu(~scale(dist) +                scale(effort) ~1, data = input_any)
     p9_any <- occu(~scale(dist) + scale(noise) + scale(effort) ~1, data = input_any)
-    p10_any <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_any) #top model
+    p10_any <- occu(~scale(dist) + site +        scale(effort) ~1, data = input_any) 
     p11_any <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_any)
     p12_any <- occu(~scale(dist) + scale(noise) + site + scale(effort) ~1, data = input_any) 
     p13_any <- occu(~scale(dist) + scale(noise) + nest + scale(effort) ~1, data = input_any)
-    
+    p14_any <- occu(~scale(dist) + scale(bo_d) ~ 1, data = input_any)
+    p15_any <- occu(~scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_any)
+    p16_any <- occu(~scale(dist) + scale(bo_d) + site ~ 1, data = input_any)
+    p17_any <- occu(~scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_any)
+    p18_any <- occu(~scale(dist) + scale(bo_d) + scale(noise) + scale(effort) + site ~ 1, data = input_any)
+  
   #'p' with factor for week
+    p1_any_week  <- occu(~week                                              ~1, data = input_any)
+    p2_any_week  <- occu(~week + scale(dist)                                ~1, data = input_any)
+    p3_any_week  <- occu(~week + scale(dist) + scale(noise)                 ~1, data = input_any)
+    p4_any_week  <- occu(~week + scale(dist) +                site          ~1, data = input_any)
+    p5_any_week  <- occu(~week + scale(dist) + scale(noise) + site          ~1, data = input_any) 
+    p6_any_week  <- occu(~week + scale(dist) +                nest          ~1, data = input_any)
+    p7_any_week  <- occu(~week + scale(dist) + scale(noise) + nest          ~1, data = input_any)
+    p8_any_week  <- occu(~week + scale(dist) +                scale(effort) ~1, data = input_any) 
+    p9_any_week  <- occu(~week + scale(dist) + scale(noise) + scale(effort) ~1, data = input_any) 
+    p10_any_week <- occu(~week + scale(dist) + site +         scale(effort) ~1, data = input_any) 
+    p11_any_week <- occu(~week + scale(dist) +        nest +  scale(effort) ~1, data = input_any) 
+    p12_any_week <- occu(~week + scale(dist) + scale(noise) + site + scale(effort) ~ 1, data = input_any) #TOP W/ NO TIME 
+    p13_any_week <- occu(~week + scale(dist) + scale(noise) + nest + scale(effort) ~ 1, data = input_any) 
+    p14_any_week <- occu(~week + scale(dist) + scale(bo_d) ~ 1, data = input_any)
+    p15_any_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_any)
+    p16_any_week <- occu(~week + scale(dist) + scale(bo_d) + site ~ 1, data = input_any)
+    p17_any_week <- occu(~week + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_any)
+    p18_any_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise) + scale(effort) + site ~ 1, data = input_any)
+    
+  #'p' with linear trend for week
+    p1_any_time <- occu(~time                                              ~1, data = input_any)
     p2_any_time <- occu(~time + scale(dist)                                ~1, data = input_any)
     p3_any_time <- occu(~time + scale(dist) + scale(noise)                 ~1, data = input_any)
     p4_any_time <- occu(~time + scale(dist) +                site          ~1, data = input_any)
-    p5_any_time <- occu(~time + scale(dist) + scale(noise) + site          ~1, data = input_any) #top
+    p5_any_time <- occu(~time + scale(dist) + scale(noise) + site          ~1, data = input_any) 
     p6_any_time <- occu(~time + scale(dist) +                nest          ~1, data = input_any)
     p7_any_time <- occu(~time + scale(dist) + scale(noise) + nest          ~1, data = input_any)
-    p8_any_time <- occu(~time + scale(dist) +                scale(effort) ~1, data = input_any) #e
-    p9_any_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data = input_any) #e
-    p10_any_time <- occu(~time + scale(dist) + site +        scale(effort) ~1, data = input_any) #e
-    p11_any_time <- occu(~time + scale(dist) +        nest + scale(effort) ~1, data = input_any) #e
-    p12_any_time <- occu(~time + scale(dist) + scale(noise) + site+scale(effort)~1,data=input_any) #e
-    p13_any_time <- occu(~time + scale(dist) + scale(noise) + nest+scale(effort)~1,data=input_any) #e
+    p8_any_time <- occu(~time + scale(dist) +                scale(effort) ~1, data = input_any) 
+    p9_any_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data = input_any) 
+    p10_any_time <- occu(~time + scale(dist) + site +        scale(effort) ~1, data = input_any) 
+    p11_any_time <- occu(~time + scale(dist) +        nest + scale(effort) ~1, data = input_any) 
+    p12_any_time <- occu(~time + scale(dist) + scale(noise) + site+scale(effort)~1,data=input_any) #TOP (<2 AIC)
+    p13_any_time <- occu(~time + scale(dist) + scale(noise) + nest+scale(effort)~1,data=input_any) 
+    p14_any_time <- occu(~time + scale(dist) + scale(bo_d) ~ 1, data = input_any)
+    p15_any_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_any)
+    p16_any_time <- occu(~time + scale(dist) + scale(bo_d) + site ~ 1, data = input_any)
+    p17_any_time <- occu(~time + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_any)
+    p18_any_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise) + scale(effort) + site ~ 1, data = input_any)
+
+  #'p' with quadratic trend for week
+    p1_any_time2 <- occu(~poly(time,2)                                     ~1, data = input_any)
+    p2_any_time2 <- occu(~poly(time,2) + scale(dist)                       ~1, data = input_any)
+    p3_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)        ~1, data = input_any)
+    p4_any_time2 <- occu(~poly(time,2) + scale(dist) +      site          ~1, data = input_any)
+    p5_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + site  ~1, data = input_any) 
+    p6_any_time2 <- occu(~poly(time,2) + scale(dist) +                nest  ~1, data = input_any)
+    p7_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + nest  ~1, data = input_any)
+    p8_any_time2 <- occu(~poly(time,2) + scale(dist) +        scale(effort) ~1, data = input_any) 
+    p9_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + scale(effort) ~1, data = input_any) 
+    p10_any_time2 <- occu(~poly(time,2) + scale(dist) + site + scale(effort) ~1, data = input_any) 
+    p11_any_time2 <- occu(~poly(time,2) + scale(dist) +nest + scale(effort) ~1, data = input_any) 
+    p12_any_time2 <- occu(~poly(time,2)+scale(dist)+scale(noise)+ site+scale(effort)~1,data=input_any) #TOP (<2 AIC)
+    p13_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + nest+scale(effort)~1,data=input_any) 
+    p14_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) ~ 1, data = input_any)
+    p15_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_any)
+    p16_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + site ~ 1, data = input_any)
+    p17_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_any)
+    p18_any_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise) + scale(effort) + site ~ 1, data = input_any)
+ 
+  ## compare models
     
-    modList_any_time <- fitList('p(.), psi(.)}' = p1_any,
-              ) 
-    modSel(modList_any_time)
+    #no time
+    modListAny <- fitList(p1_any, p2_any, p3_any, p4_any, p5_any, p6_any, p7_any, p8_any, p9_any, p10_any, 
+                          p11_any, p12_any, p13_any, p14_any, p15_any, p16_any, p17_any, p18_any)
+      modSelAny <- modSel(modListAny)
+      modSelAnyDF <- as(modSelAny, 'data.frame') #also stores coefficients
+      
+      
+    #week as factor
+    modListWk <- fitList(p1_any_week, p2_any_week, p3_any_week, p4_any_week, p5_any_week, p6_any_week, p7_any_week,
+                         p8_any_week, p9_any_week, p10_any_week, p11_any_week, p12_any_week, p13_any_week,
+                         p14_any_week, p15_any_week, p16_any_week, p17_any_week, p18_any_week)
+    modSelWk <- modSel(modListWk)
+    modSelWkDF <- as(modSelWk, 'data.frame') #also stores coefficients
     
-  #compare models
-        modList_any <- fitList('p(.), psi(.)}' = p1_any,
-                   'p(dist), psi(.)' = p2_any,
-                   'p(dist + noise), psi(.)' = p3_any, 
-                   'p(dist + site), psi(.)' = p4_any,
-                   'p(dist + noise + site), psi(.)' = p5_any, 
-                   'p(dist + nest), psi(.)' = p6_any,
-                   'p(dist + noise + nest), psi(.)' = p7_any,
-                   'p(dist + effort), psi(.)' = p8_any,
-                   'p(dist + noise + effort), psi(.)' = p9_any,
-                   'p(dist + site + effort), psi(.)' = p10_any, 
-                   'p(dist + nest + effort), psi(.)' = p11_any,
-                   'p(dist + noise + site + effort), psi(.)' = p12_any, #top model
-                   'p(dist + noise + nest + effort), psi(.)' = p13_any,
-                   'p(time + dist), psi(.)' = p2_any_time,
-                   'p(time + dist + noise), psi(.)' = p3_any_time, 
-                   'p(time + dist + site), psi(.)' = p4_any_time,
-                   'p(time + dist + noise + site), psi(.)' = p5_any_time, #top model w/ time (-20 AIC)
-                   'p(time + dist + nest), psi(.)' = p6_any_time,
-                   'p(time + dist + noise + nest), psi(.)' = p7_any_time) 
-      modSel(modList_any)
+      
+    #linear time trend
+    modListT <- fitList(p1_any_time, p2_any_time, p3_any_time, p4_any_time, p5_any_time, p6_any_time, p7_any_time,
+                        p8_any_time, p9_any_time, p10_any_time, p11_any_time, p12_any_time, p13_any_time,
+                        p14_any_time, p15_any_time, p16_any_time, p17_any_time, p18_any_time)
+    modSelT <- modSel(modListT)
+    modSelTDF <- as(modSelT, 'data.frame') #also stores coefficients
+    
+ 
+    #quadratic time trend
+    modListT2 <- fitList(p1_any_time2, p2_any_time2, p3_any_time2, p4_any_time2, p5_any_time2, p6_any_time2, p7_any_time2,
+                         p8_any_time2, p9_any_time2, p10_any_time2, p11_any_time2, p12_any_time2, p13_any_time2,
+                         p14_any_time2, p15_any_time2, p16_any_time2, p17_any_time2, p18_any_time2)
+    modSelT2 <- modSel(modListT2)
+    modSelT2DF <- as(modSelT2, 'data.frame') #also stores coefficients
+  
+    
+    #top models viewed together:
+    modListTop <- fitList(p18_any, p18_any_week, p18_any_time, p18_any_time2)
+    modSelTop <- modSel(modListTop) 
+    modSelTopDF <- as(modSelTop, 'data.frame') #also stores coefficients
+
     
 ```
 
-##
-##### - Female detections (FNLC or pair)
+##### - All detections: no time component
 ```{r echo=FALSE}
+      modSelAnyDF[,c('formula','nPars','n','AIC','delta')] %>%
+        kbl(digits = 3) %>%
+        kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                      font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+
+```
+
+##### - All detections: 'week' as factor
+```{r echo=F}
+    modSelWkDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+
+```
+
+##### - All detections: linear time trend
+```{r echo=F}
+    modSelTDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+
+```
+
+##### - All detections: quadratic time trend
+```{r echo=FALSE}
+    modSelT2DF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+
+```
+
+##### - All detections: top models viewed together
+```{r echo=F}
+    modSelTopDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') 
+#%>%
+#      scroll_box(height = '600px')
+
+```
+
+
+##
+```{r echo=FALSE, warning=FALSE}
+##### - Female detections (FNLC or pair)
+
   #no time component
     p1_fem <- occu(~1                                          ~1, data = input_female)
     p2_fem <- occu(~scale(dist)                                ~1, data = input_female)
@@ -298,49 +488,165 @@ library(kableExtra)
     p9_fem <- occu(~scale(dist) + scale(noise) + scale(effort) ~1, data = input_female)
     p10_fem <- occu(~scale(dist) + site +   scale(effort) ~1, data = input_female) 
     p11_fem <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_female)
-    p12_fem <- occu(~scale(dist) + scale(noise) + site + scale(effort) ~1,data=input_female)#top model
+    p12_fem <- occu(~scale(dist) + scale(noise) + site + scale(effort) ~1,data=input_female)
     p13_fem <- occu(~scale(dist) + scale(noise) + nest + scale(effort) ~1, data = input_female)
-    
+    p14_fem <- occu(~scale(dist) + scale(bo_d) ~ 1, data = input_female)
+    p15_fem <- occu(~scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_female)
+    p16_fem <- occu(~scale(dist) + scale(bo_d) + site ~ 1, data = input_female)
+    p17_fem <- occu(~scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_female)
+    p18_fem <- occu(~scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_female)
+
+   
   #'p' with factor for week
-    p2_fem_time <- occu(~time + scale(dist)                                ~1, data=input_female) #NAs
-    p3_fem_time <- occu(~time + scale(dist) + scale(noise)                 ~1, data=input_female) #NAs
+    p1_fem_week <- occu(~week                                              ~1, data = input_female)
+    p2_fem_week <- occu(~week + scale(dist)                                ~1, data=input_female) 
+    p3_fem_week <- occu(~week + scale(dist) + scale(noise)                 ~1, data=input_female) 
+    p4_fem_week <- occu(~week + scale(dist) +                site          ~1, data=input_female)
+    p5_fem_week <- occu(~week + scale(dist) + scale(noise) + site          ~1, data=input_female)
+    p6_fem_week <- occu(~week + scale(dist) +                nest          ~1, data=input_female)
+    p7_fem_week <- occu(~week + scale(dist) + scale(noise) + nest          ~1, data=input_female)
+    p8_fem_week <- occu(~week + scale(dist) +                scale(effort) ~1, data=input_female) 
+    p9_fem_week <- occu(~week + scale(dist) + scale(noise) + scale(effort) ~1, data=input_female) 
+    p10_fem_week <- occu(~week + scale(dist) + site +   scale(effort) ~1,data=input_female) 
+    p11_fem_week <- occu(~week + scale(dist) +        nest + scale(effort) ~1, data = input_female) 
+    p12_fem_week <- occu(~week + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_female) 
+    p13_fem_week <- occu(~week + scale(dist) + scale(noise)+nest+scale(effort)~1,data=input_female) 
+    p14_fem_week <- occu(~week + scale(dist) + scale(bo_d) ~ 1, data = input_female)
+    p15_fem_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_female)
+    p16_fem_week <- occu(~week + scale(dist) + scale(bo_d) + site ~ 1, data = input_female)
+    p17_fem_week <- occu(~week + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_female)
+    p18_fem_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_female)
+
+    
+  #'p' with linear trend for week
+    p1_fem_time <- occu(~time                                              ~1, data = input_female)
+    p2_fem_time <- occu(~time + scale(dist)                                ~1, data=input_female) 
+    p3_fem_time <- occu(~time + scale(dist) + scale(noise)                 ~1, data=input_female) 
     p4_fem_time <- occu(~time + scale(dist) +                site          ~1, data=input_female)
     p5_fem_time <- occu(~time + scale(dist) + scale(noise) + site          ~1, data=input_female)
     p6_fem_time <- occu(~time + scale(dist) +                nest          ~1, data=input_female)
     p7_fem_time <- occu(~time + scale(dist) + scale(noise) + nest          ~1, data=input_female)
-    p8_fem_time <- occu(~time + scale(dist) +                scale(effort) ~1, data=input_female) #e
-    p9_fem_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data=input_female) #e
-    p10_fem_time <- occu(~time + scale(dist) + site +   scale(effort) ~1,data=input_female) #e
-    p11_fem_time <- occu(~time + scale(dist) +        nest + scale(effort) ~1, data = input_female) #e
-    p12_fem_time <- occu(~time + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_female) #e
-    p13_fem_time <- occu(~time + scale(dist) + scale(noise)+nest+scale(effort)~1,data=input_female) #e
-    
-    modList_fem <- fitList('p(.), psi(.)}' = p1_fem,
-                       'p(dist), psi(.)' = p2_fem,
-                       'p(dist + noise), psi(.)' = p3_fem, 
-                       'p(dist + site), psi(.)' = p4_fem,
-                       'p(dist + noise + site), psi(.)' = p5_fem,
-                       'p(dist + nest), psi(.)' = p6_fem,
-                       'p(dist + noise + nest), psi(.)' = p7_fem,
-                       'p(dist + effort), psi(.)' = p8_fem,
-                       'p(dist + noise + effort), psi(.)' = p9_fem,
-                       'p(dist + site + effort), psi(.)' = p10_fem, 
-                       'p(dist + nest + effort), psi(.)' = p11_fem,
-                       'p(dist + noise + site + effort), psi(.)' = p12_fem,#top model w/o time(-6 AIC)
-                       'p(dist + noise + nest + effort), psi(.)' = p13_fem,
-                       'p(time + dist), psi(.)' = p2_fem_time, #NAs
-                       'p(time + dist + noise), psi(.)' = p3_fem_time, #NAs
-                       'p(time + dist + site), psi(.)' = p4_fem_time,
-                       'p(time + dist + noise + site), psi(.)' = p5_fem_time, #top model
-                       'p(time + dist + nest), psi(.)' = p6_fem_time,
-                       'p(time + dist + noise + nest), psi(.)' = p7_fem_time) 
-    modSel(modList_fem)
+    p8_fem_time <- occu(~time + scale(dist) +                scale(effort) ~1, data=input_female) 
+    p9_fem_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data=input_female) 
+    p10_fem_time <- occu(~time + scale(dist) + site +   scale(effort) ~1,data=input_female) 
+    p11_fem_time <- occu(~time + scale(dist) +        nest + scale(effort) ~1, data = input_female) 
+    p12_fem_time <- occu(~time + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_female) 
+    p13_fem_time <- occu(~time + scale(dist) + scale(noise)+nest+scale(effort)~1,data=input_female) 
+    p14_fem_time <- occu(~time + scale(dist) + scale(bo_d) ~ 1, data = input_female)
+    p15_fem_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_female)
+    p16_fem_time <- occu(~time + scale(dist) + scale(bo_d) + site ~ 1, data = input_female)
+    p17_fem_time <- occu(~time + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_female)
+    p18_fem_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_female)
 
+    
+  #'p' with quadratic trend for week
+    p1_fem_time2 <- occu(~poly(time,2)                                              ~1, data = input_female)
+    p2_fem_time2 <- occu(~poly(time,2) + scale(dist)                                ~1, data=input_female) 
+    p3_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)                 ~1, data=input_female) 
+    p4_fem_time2 <- occu(~poly(time,2) + scale(dist) +                site          ~1, data=input_female)
+    p5_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + site          ~1, data=input_female)
+    p6_fem_time2 <- occu(~poly(time,2) + scale(dist) +                nest          ~1, data=input_female)
+    p7_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + nest          ~1, data=input_female)
+    p8_fem_time2 <- occu(~poly(time,2) + scale(dist) +                scale(effort) ~1, data=input_female) 
+    p9_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + scale(effort) ~1, data=input_female) 
+    p10_fem_time2 <- occu(~poly(time,2) + scale(dist) + site +   scale(effort) ~1,data=input_female) 
+    p11_fem_time2 <- occu(~poly(time,2) + scale(dist) +        nest + scale(effort) ~1, data = input_female) 
+    p12_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_female) 
+    p13_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)+nest+scale(effort)~1,data=input_female) 
+    p14_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) ~ 1, data = input_female)
+    p15_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_female)
+    p16_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + site ~ 1, data = input_female)
+    p17_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_female)
+    p18_fem_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_female)
+
+  ## compare models
+    
+    #no time
+    modListFem <- fitList(p1_fem, p2_fem, p3_fem, p4_fem, p5_fem, p6_fem, p7_fem, p8_fem, p9_fem, p10_fem, 
+                          p11_fem, p12_fem, p13_fem, p14_fem, p15_fem, p16_fem, p17_fem, p18_fem)
+    modSelFem <- modSel(modListFem)
+    modSelFemDF <- as(modSelFem, 'data.frame') #also stores coefficients
+    
+    #week as factor
+    modListFemWk <- fitList(p1_fem_week, p2_fem_week, p3_fem_week, p4_fem_week, p5_fem_week, p6_fem_week, p7_fem_week,
+                         p8_fem_week, p9_fem_week, p10_fem_week, p11_fem_week, p12_fem_week, p13_fem_week,
+                         p14_fem_week, p15_fem_week, p16_fem_week, p17_fem_week, p18_fem_week)
+    modSelFemWk <- modSel(modListFemWk)
+    modSelFemWkDF <- as(modSelFemWk, 'data.frame') #also stores coefficients
+  
+    #linear time trend
+    modListFemT <- fitList(p1_fem_time, p2_fem_time, p3_fem_time, p4_fem_time, p5_fem_time, p6_fem_time, p7_fem_time,
+                        p8_fem_time, p9_fem_time, p10_fem_time, p11_fem_time, p12_fem_time, p13_fem_time,
+                        p14_fem_time, p15_fem_time, p16_fem_time, p17_fem_time, p18_fem_time)
+    modSelFemT <- modSel(modListFemT)
+    modSelFemTDF <- as(modSelFemT, 'data.frame') #also stores coefficients
+    
+    #quadratic time trend
+    modListFemT2 <- fitList(p1_fem_time2, p2_fem_time2, p3_fem_time2, p4_fem_time2, p5_fem_time2, p6_fem_time2, p7_fem_time2,
+                         p8_fem_time2, p9_fem_time2, p10_fem_time2, p11_fem_time2, p12_fem_time2, p13_fem_time2,
+                         p14_fem_time2, p15_fem_time2, p16_fem_time2, p17_fem_time2, p18_fem_time2)
+    modSelFemT2 <- modSel(modListFemT2)
+    modSelFemT2DF <- as(modSelFemT2, 'data.frame') #also stores coefficients
+    
+    
+    #top models viewed together:
+    modListFemTop <- fitList(p18_fem, p18_fem_week, p18_fem_time, p18_fem_time2)
+    modSelFemTop <- modSel(modListFemTop) 
+    modSelFemTopDF <- as(modSelFemTop, 'data.frame') #also stores coefficients
+    
 ```
 
+##### - Female detections: no time component
+```{r echo=F}
+    modSelFemDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+
+##### - Female detections: 'week' as factor
+```{r echo=F}
+    modSelFemWkDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+
+##### - Female detections: linear time trend
+```{r echo=F}
+    modSelFemTDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+    
+```
+
+##### - Female detections: quadratic time trend
+```{r echo=F}
+    modSelFemT2DF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+
+
+##### - Female detections: top models viewed together
+```{r echo=F}
+    modSelFemTopDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') 
+```
+
+
 ## 
+```{r echo=FALSE, warning=FALSE}
 ##### - Male detections (FNLC or pair)
-```{r echo=FALSE}
+
   #no time component  
     p1_mal <- occu(~1                                          ~1, data = input_male)
     p2_mal <- occu(~scale(dist)                                ~1, data = input_male)
@@ -351,72 +657,199 @@ library(kableExtra)
     p7_mal <- occu(~scale(dist) + scale(noise) + nest          ~1, data = input_male)
     p8_mal <- occu(~scale(dist) +                scale(effort) ~1, data = input_male)
     p9_mal <- occu(~scale(dist) + scale(noise) + scale(effort) ~1, data = input_male)
-    p10_mal <- occu(~scale(dist) + site +   scale(effort) ~1, data = input_male) #top model
+    p10_mal <- occu(~scale(dist) + site +   scale(effort) ~1, data = input_male)
     p11_mal <- occu(~scale(dist) +        nest + scale(effort) ~1, data = input_male)
     p12_mal <- occu(~scale(dist) + scale(noise) + site + scale(effort) ~1, data=input_male)
     p13_mal <- occu(~scale(dist) + scale(noise) + nest + scale(effort) ~1, data=input_male)
+    p14_mal <- occu(~scale(dist) + scale(bo_d) ~ 1, data = input_male)
+    p15_mal <- occu(~scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_male)
+    p16_mal <- occu(~scale(dist) + scale(bo_d) + site ~ 1, data = input_male)
+    p17_mal <- occu(~scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_male)
+    p18_mal <- occu(~scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_male)
+
     
   #'p' with factor for week
+    p1_mal_week <- occu(~week ~1, data = input_male)
+    p2_mal_week <- occu(~week + scale(dist)                                ~1, data = input_male)
+    p3_mal_week <- occu(~week + scale(dist) + scale(noise)                 ~1, data = input_male)
+    p4_mal_week <- occu(~week + scale(dist) +                site          ~1, data = input_male)
+    p5_mal_week <- occu(~week + scale(dist) + scale(noise) + site          ~1, data = input_male)
+    p6_mal_week <- occu(~week + scale(dist) +                nest          ~1, data = input_male)
+    p7_mal_week <- occu(~week + scale(dist) + scale(noise) + nest          ~1, data = input_male) 
+    p8_mal_week <- occu(~week + scale(dist) +                scale(effort) ~1, data = input_male)     
+    p9_mal_week <- occu(~week + scale(dist) + scale(noise) + scale(effort) ~1, data = input_male) 
+    p10_mal_week <- occu(~week + scale(dist) + site +   scale(effort) ~1,data=input_male) #error
+    p11_mal_week <- occu(~week + scale(dist) +        nest + scale(effort)~1,data=input_male) 
+    p12_mal_week <- occu(~week + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_male) #error
+    p13_mal_week <- occu(~week + scale(dist) + scale(noise)+nest+scale(effort)~1, data=input_male)  
+    p14_mal_week <- occu(~week + scale(dist) + scale(bo_d) ~ 1, data = input_male)
+    p15_mal_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_male)
+    p16_mal_week <- occu(~week + scale(dist) + scale(bo_d) + site ~ 1, data = input_male)
+    p17_mal_week <- occu(~week + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_male)
+    p18_mal_week <- occu(~week + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_male)
+    
+  #'p' with linear trend on week
+    p1_mal_time <- occu(~time ~1, data = input_male)
     p2_mal_time <- occu(~time + scale(dist)                                ~1, data = input_male)
     p3_mal_time <- occu(~time + scale(dist) + scale(noise)                 ~1, data = input_male)
     p4_mal_time <- occu(~time + scale(dist) +                site          ~1, data = input_male)
     p5_mal_time <- occu(~time + scale(dist) + scale(noise) + site          ~1, data = input_male)
     p6_mal_time <- occu(~time + scale(dist) +                nest          ~1, data = input_male)
-    p7_mal_time <- occu(~time + scale(dist) + scale(noise) + nest          ~1, data = input_male) #e 
-    p8_mal_time <- occu(~time + scale(dist) +                scale(effort) ~1, data = input_male) #e
-    p9_mal_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data = input_male) #e
-    p10_mal_time <- occu(~time + scale(dist) + site +   scale(effort) ~1,data=input_male) #e
-    p11_mal_time <- occu(~time + scale(dist) +        nest + scale(effort)~1,data=input_male) #e
-    p12_mal_time <- occu(~time + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_male) #e
-    p13_mal_time <- occu(~time + scale(dist) + scale(noise)+nest+scale(effort)~1, data=input_male) #e
+    p7_mal_time <- occu(~time + scale(dist) + scale(noise) + nest          ~1, data = input_male)  
+    p8_mal_time <- occu(~time + scale(dist) +                scale(effort) ~1, data = input_male) 
+    p9_mal_time <- occu(~time + scale(dist) + scale(noise) + scale(effort) ~1, data = input_male) 
+    p10_mal_time <- occu(~time + scale(dist) + site +   scale(effort) ~1,data=input_male) 
+    p11_mal_time <- occu(~time + scale(dist) +        nest + scale(effort)~1,data=input_male) 
+    p12_mal_time <- occu(~time + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_male) 
+    p13_mal_time <- occu(~time + scale(dist) + scale(noise)+nest+scale(effort)~1, data=input_male) 
+    p14_mal_time <- occu(~time + scale(dist) + scale(bo_d) ~ 1, data = input_male)
+    p15_mal_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_male)
+    p16_mal_time <- occu(~time + scale(dist) + scale(bo_d) + site ~ 1, data = input_male)
+    p17_mal_time <- occu(~time + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_male)
+    p18_mal_time <- occu(~time + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_male)
+
+  #'p' with quadratic trend on week
+    p1_mal_time2 <- occu(~poly(time,2) ~1, data = input_male)
+    p2_mal_time2 <- occu(~poly(time,2) + scale(dist)                                ~1, data = input_male)
+    p3_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)                 ~1, data = input_male)
+    p4_mal_time2 <- occu(~poly(time,2) + scale(dist) +                site          ~1, data = input_male)
+    p5_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + site          ~1, data = input_male)
+    p6_mal_time2 <- occu(~poly(time,2) + scale(dist) +                nest          ~1, data = input_male)
+    p7_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + nest          ~1, data = input_male)  
+    p8_mal_time2 <- occu(~poly(time,2) + scale(dist) +                scale(effort) ~1, data = input_male) 
+    p9_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise) + scale(effort) ~1, data = input_male) 
+    p10_mal_time2 <- occu(~poly(time,2) + scale(dist) + site +   scale(effort) ~1,data=input_male) 
+    p11_mal_time2 <- occu(~poly(time,2) + scale(dist) +        nest + scale(effort)~1,data=input_male) 
+    p12_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)+site+scale(effort)~1,data=input_male) 
+    p13_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(noise)+nest+scale(effort)~1, data=input_male)
+    p14_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) ~ 1, data = input_male)
+    p15_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise) ~ 1, data = input_male)
+    p16_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + site ~ 1, data = input_male)
+    p17_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(effort) ~ 1, data = input_male)
+    p18_mal_time2 <- occu(~poly(time,2) + scale(dist) + scale(bo_d) + scale(noise)+scale(effort)+site~1,data = input_male)
     
-    modList_mal_fnlcp <- fitList('p(.), psi(.)}' = p1_mal,
-                       'p(dist), psi(.)' = p2_mal,
-                       'p(dist + noise), psi(.)' = p3_mal, 
-                       'p(dist + site), psi(.)' = p4_mal,
-                       'p(dist + noise + site), psi(.)' = p5_mal, 
-                       'p(dist + nest), psi(.)' = p6_mal,
-                       'p(dist + noise + nest), psi(.)' = p7_mal,
-                       'p(dist + effort), psi(.)' = p8_mal,
-                       'p(dist + noise + effort), psi(.)' = p9_mal,
-                       'p(dist + site + effort), psi(.)' = p10_mal, #only -8 AIC
-                       'p(dist + nest + effort), psi(.)' = p11_mal,
-                       'p(dist + noise + site + effort), psi(.)' = p12_mal, #top model
-                       'p(dist + noise + nest + effort), psi(.)' = p13_mal,
-                       'p(time + dist), psi(.)' = p2_mal_time, 
-                       'p(time + dist + noise), psi(.)' = p3_mal_time, 
-                       'p(time + dist + site), psi(.)' = p4_mal_time,
-                       'p(time + dist + noise + site), psi(.)' = p5_mal_time, #top model w/time (-26)
-                       'p(time + dist + nest), psi(.)' = p6_mal_time,
-                       'p(time + dist + noise + nest), psi(.)' = p7_mal_time) 
-    modSel(modList_mal_fnlcp)    
+    ## compare models
     
+    #no time
+    modListMal <- fitList(p1_mal, p2_mal, p3_mal, p4_mal, p5_mal, p6_mal, p7_mal, p8_mal, p9_mal, p10_mal, 
+                          p11_mal, p12_mal, p13_mal, p14_mal, p15_mal, p16_mal, p17_mal, p18_mal)
+    modSelMal <- modSel(modListMal)
+    modSelMalDF <- as(modSelMal, 'data.frame') #also stores coefficients
+    
+    
+    #week as factor
+    modListMalWk <- fitList(p1_mal_week, p2_mal_week, p3_mal_week, p4_mal_week, p5_mal_week, p6_mal_week, p7_mal_week,
+                            p8_mal_week, p9_mal_week, p10_mal_week, p11_mal_week, p12_mal_week, p13_mal_week,
+                            p14_mal_week, p15_mal_week, p16_mal_week, p17_mal_week, p18_mal_week)
+    modSelMalWk <- modSel(modListMalWk)
+    modSelMalWkDF <- as(modSelMalWk, 'data.frame') #also stores coefficients
+    
+    
+    #linear time trend
+    modListMalT <- fitList(p1_mal_time, p2_mal_time, p3_mal_time, p4_mal_time, p5_mal_time, p6_mal_time, p7_mal_time,
+                           p8_mal_time, p9_mal_time, p10_mal_time, p11_mal_time, p12_mal_time, p13_mal_time,
+                           p14_mal_time, p15_mal_time, p16_mal_time, p17_mal_time, p18_mal_time)
+    modSelMalT <- modSel(modListMalT)
+    modSelMalTDF <- as(modSelMalT, 'data.frame') #also stores coefficients
+    
+    
+    #quadratic time trend
+    modListMalT2 <- fitList(p1_mal_time2, p2_mal_time2, p3_mal_time2, p4_mal_time2, p5_mal_time2, p6_mal_time2, p7_mal_time2,
+                            p8_mal_time2, p9_mal_time2, p10_mal_time2, p11_mal_time2, p12_mal_time2, p13_mal_time2,
+                            p14_mal_time2, p15_mal_time2, p16_mal_time2, p17_mal_time2, p18_mal_time2)
+    modSelMalT2 <- modSel(modListMalT2)
+    modSelMalT2DF <- as(modSelMalT2, 'data.frame') #also stores coefficients
+  
+    
+    #top models viewed together:
+    modListMalTop <- fitList(p18_mal, p18_mal_week, p18_mal_time, p18_mal_time2)
+    modSelMalTop <- modSel(modListMalTop) 
+    modSelMalTopDF <- as(modSelMalTop, 'data.frame') #also stores coefficients
+    
+   
+```
+
+##### - Male detections: no time component
+```{r echo=F}
+# no time component
+    modSelMalDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+    
+```    
+
+##### - Male detections: 'week' as factor
+```{r echo=F}
+    modSelMalWkDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+
+##### - Male detections:linear time trend
+```{r echo=F}
+    modSelMalTDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+
+##### - Male detections:quadratic time trend
+```{r echo=F}
+    modSelMalT2DF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') %>%
+      scroll_box(height = '600px')
+```
+    
+##### - Male detections: top models viewed together
+```{r echo=F}
+    modSelMalTopDF[,c('formula','nPars','n','AIC','delta')] %>%
+      kbl(digits = 3) %>%
+      kable_styling(bootstrap_options = c('striped','hover','responsive'), fixed_thead = TRUE, 
+                    font_size = 14, full_width = FALSE, position = 'left') 
+
 ```
 
 ## 
-#### View parameter estimate from top models above
-```{r echo=FALSE}
+#### - View parameter estimates from top models above 
+#### (using linear trend on time here --- simpler than quadratic and within 2 delta AIC)
+```{r}
+# All detections
+    p18_any_time
 
-    p12_any
-    p12_fem
-    p12_mal
-
+# Females
+    p18_fem_time
+    
+# Males
+    p18_mal_time
+    
 ```
 
+
 ##
-#### Create marginal plots (by site): p(dist + noise + site + effort)
+#### - Make predictions on covariate values
 ```{r echo=FALSE}
 
   ## Format covariate values to predict on
+    time_grid   <- paste('wk',seq(1:22),sep = '_')
     dist_grid   <- sort(c(mean(site_covars$dist_actual), 
                           seq(min(site_covars$dist_actual), max(site_covars$dist_actual), 
-                              length = 50)))
-    effort_grid <- sort(c(effort_mean, seq(min(effort_covar), max(effort_covar), length = 49)))
+                              length = 50))) #use 50 to include '0'
     noise_grid  <- sort(c(noise_mean, seq(min(noise_covar), max(noise_covar), length = 49)))
     site_grid   <- unique(site_covars$site_name) 
+    effort_grid <- sort(c(effort_mean, seq(min(effort_covar), max(effort_covar), length = 49)))
     
-      covars12 <- expand.grid('dist' = dist_grid, 'effort' = effort_grid,
-                              'noise' = noise_grid, 'site' = site_grid)
+      covars12 <- expand.grid('dist' = dist_grid, 'noise' = noise_grid, 
+                              'site' = site_grid, 'effort' = effort_grid, 'time' = time_grid)
+      
+      covars12_no_time <- expand.grid('dist' = dist_grid, 'noise' = noise_grid, 
+                              'site' = site_grid, 'effort' = effort_grid)
       
     # And change site-level names for plotting
       site_covars$site <- site_covars$site_name
@@ -424,67 +857,264 @@ library(kableExtra)
 
     
   ## Predict (slow) -- remember to source R script above for this function
-    preds12any <- occPred(p12_any, covars12, 'any')
-    preds12fem <- occPred(p12_fem, covars12, 'female')
-    preds12mal <- occPred(p12_mal, covars12, 'male')
+    #preds12any <- occPred(p12_any, covars12_no_time, 'any')
+    #preds12fem <- occPred(p12_fem, covars12_no_time, 'fem')
+    #preds12mal <- occPred(p12_mal, covars12_no_time, 'mal')
+      
+#      preds12any_time <- predict(p12_any_time, type = 'state', as.data.frame(covars12))
+    # preds12any_time <- occPred(p12_any_time, covars12, 'any')
+    # preds12fem_time <- occPred(p12_fem_time, covars12, 'female')
+    # preds12mal_time <- occPred(p12_mal_time, covars12, 'male')
 
-    predsAll <- do.call('rbind', list(preds12any, preds12fem, preds12mal))
+    #predsAll <- do.call('rbind', list(preds12any, preds12fem, preds12mal))
+    # predsAll_time <- do.call('rbind', list(preds12any_time, preds12fem_time, preds12mal_time))
 
+    
+##################    
+  ## Try a different way (predict too slow)
+    
+    # Your model formula and data
+    model_formula <- p12_any_time
+    data_input <- input_any 
+
+    #generate combos of covars
+    covariate_combinations <- expand.grid(
+      dist = 0,  # Keep other covariates constant (mean-centered)
+      noise = 0,
+      site = levels(data_input@obsCovs$site),
+      effort = 0
+      )
+    
+    # Create a sequence of time values (standardized if necessary)
+    time_seq <- seq(min(data_input@obsCovs$time), max(data_input@obsCovs$time), length.out = 100)
+
+    # Simulate detection probabilities for each covariate combination and time
+    simulated_probs <- list()
+
+    for (i in 1:nrow(covariate_combinations)) {
+      covars <- covariate_combinations[i, ]
+      sim_probs <- rep(NA, length(time_seq))
+      
+      for (j in seq_along(time_seq)) {
+        time_val <- time_seq[j]
+    
+      # Calculate linear and quadratic terms for time (scaled)
+      # time_linear <- (time_val - mean(data_input@obsCovs$time)) / sd(data_input@obsCovs$time)
+      time_linear <- time_val
+      time_quadratic <- time_linear^2
+      
+      # Calculate linear predictor for detection probability using model parameters
+      linear_predictor <- coef(model_formula)["p(Int)"] +
+        coef(model_formula)["p(time)"] * time_linear +
+        #coef(model_formula)["p(poly(time, 2)1)"] * time_linear +
+        #coef(model_formula)["p(poly(time, 2)2)"] * time_quadratic +
+        coef(model_formula)["p(scale(dist))"] * covars$dist +
+        coef(model_formula)["p(scale(noise))"] * covars$noise +
+        coef(model_formula)["p(scale(effort))"] * covars$effort +
+        sum(coef(model_formula)[grep("site", names(coef(model_formula)))])
+
+      # Apply inverse logit to get detection probability
+      sim_probs[j] <- exp(linear_predictor) / (1 + exp(linear_predictor))
+      }
+  
+      simulated_probs[[i]] <- data.frame(time = time_seq, detection_prob = sim_probs)
+    }
+    
+    # Combine simulated results into a single data frame
+    simulated_results <- do.call(rbind, simulated_probs)
+    simulated_results$site <- rep(levels(data_input@obsCovs$site), each = length(time_seq))
+
+    # Create marginal plots using ggplot2
+    p1 <- ggplot(simulated_results, aes(x = time, y = detection_prob, color = site)) +
+      geom_line() +
+      facet_wrap(~site) +
+      # ylim(0,1) +
+      labs(x = "Time", y = "Detection Probability", color = "Site")
+    
+#     det_pred <- data.frame()
+#     for (tt in 1:length(time_grid)){
+#       linear_predictor <- coef(model_formula)["p(Int)"] + 
+#                           coef(model_formula)["time"] * time_linear +
+#                           coef(model_formula)["scale(dist)"] * covars$dist +
+#       coef(model_formula)["scale(noise)"] * covars$noise +
+#       coef(model_formula)["scale(effort)"] * covars$effort +
+#       sum(coef(model_formula)[grep(paste0("site", covars$site), names(coef(model_formula)))])
+# 
+#       
+#       dp <- coef(p12_any_time)[2] + 
+#                      coef(p12_any_time)[4] * mean(dist_grid) +
+#                      coef(p12_any_time)[5] * mean(noise_grid) +
+#                      coef(p12_any_time)[12] * mean(effort_grid) + 
+#                      coef(p12_any_time)[7] * 1 + #for site DC
+#                      coef(p12_any_time)[3] * tt
+#       dp_bt <- exp(dp) / (1 + exp(dp))
+#       det_pred <- rbind(det_pred, data.frame('time' = tt, 'det_pred' = dp))
+#       
+#       }
+    #occ_pred <- plogis(coef(fm1)[1] + coef(fm1)[2] * forest_grid)
+    
+    
+##################
+    
+  ## yet another way
+    # Generate combinations of covariate values for predictions
+#     covariate_combinations <- expand.grid(
+#       # time = time_grid,  # Vary time
+#       dist = mean(input_any@obsCovs$dist),  # Keep other covariates constant
+#       noise = mean(input_any@obsCovs$noise),
+#       site = levels(input_any@obsCovs$site),
+#       effort = mean(input_any@obsCovs$effort)
+#     )
+#     
+#     # Create a sequence of time values
+#     time_seq <- seq(min(input_any@obsCovs$time), max(input_any@obsCovs$time), length.out = 100)
+# 
+#   # Simulate occupancy probabilities for each covariate combination and time
+#   simulated_probs <- list()
+# 
+#   for (i in 1:nrow(covariate_combinations)) {
+#     covars <- covariate_combinations[i, ]
+#     sim_probs <- rep(NA, length(time_seq))
+#     
+#     for (j in seq_along(time_seq)) {
+#       time_val <- time_seq[j]
+#       newdata <- data.frame(time = time_val, dist = covars$dist, noise = covars$noise,
+#                             site = covars$site, effort = covars$effort)
+#       sim_probs[j] <- predict(p12_any_time, newdata = newdata, type = "det")$Predicted
+#     }
+#   
+#   simulated_probs[[i]] <- data.frame(time = time_seq, occupancy_prob = sim_probs)
+#   }
+# 
+#     # Combine simulated results into a single data frame
+#     simulated_results <- do.call(rbind, simulated_probs)
+#     simulated_results$site <- rep(levels(input_any@obsCovs$site), each = length(time_seq))
+# 
+#   # Create marginal plots using ggplot2
+#   p1 <- ggplot(simulated_results, aes(x = time, y = occupancy_prob, color = site)) +
+#     geom_line() +
+#     facet_wrap(~site) +
+#     labs(x = "Time", y = "Occupancy Probability", color = "Site")
+# 
+#     ##########
+#   
+# ## And again...
+# 
+#     # Your model formula and data
+#     model_formula <- p12_any_time2
+#     data_input <- input_any  
+# 
+#   # Generate combinations of covariate values for predictions
+#   covariate_combinations <- expand.grid(
+#     dist = mean(data_input@obsCovs$dist),  # Keep other covariates constant
+#     noise = mean(data_input@obsCovs$noise),
+#     site = levels(data_input@obsCovs$site),
+#     effort = mean(data_input@obsCovs$effort)
+#   )
+# 
+#   # Create a sequence of time values
+#   time_seq <- seq(min(data_input@obsCovs$time), max(data_input@obsCovs$time), length.out = 100)
+# 
+#   # Simulate occupancy probabilities for each covariate combination and quadratic time term
+#   simulated_probs <- list()
+#   
+#   for (i in 1:nrow(covariate_combinations)) {
+#     covars <- covariate_combinations[i, ]
+#     sim_probs <- rep(NA, length(time_seq))
+#     
+#     for (j in seq_along(time_seq)) {
+#       time_val <- time_seq[j]
+#       
+#       # Calculate linear and quadratic terms for time
+#       time_linear <- time_val
+#       time_quadratic <- time_val^2
+#       
+#       # Calculate linear predictor using model parameters
+#       linear_predictor <- 
+#         coef(model_formula)["p(Int)"] +
+#         coef(model_formula)["p(poly(time, 2)1)"] * time_linear +
+#         coef(model_formula)["p(poly(time, 2)2)"] * time_quadratic +
+#         coef(model_formula)["p(scale(dist))"] * covars$dist +
+#         coef(model_formula)["p(scale(noise))"] * covars$noise +
+#         coef(model_formula)["p(scale(effort))"] * covars$effort +
+#         sum(coef(model_formula)[grep("site", names(coef(model_formula)))])
+#   
+#       # Apply inverse logit to get occupancy probability
+#       sim_probs[j] <- exp(linear_predictor) / (1 + exp(linear_predictor))
+#     }
+#     
+#     simulated_probs[[i]] <- data.frame(time = time_seq, occupancy_prob = sim_probs)
+#   }
+# 
+#   # Combine simulated results into a single data frame
+#   simulated_results <- do.call(rbind, simulated_probs)
+#   simulated_results$site <- rep(levels(data_input@obsCovs$site), each = length(time_seq))
+# 
+#   # Create marginal plots using ggplot2
+#   p2 <- ggplot(simulated_results, aes(x = time, y = occupancy_prob, color = site)) +
+#     geom_line() +
+#     facet_wrap(~site) +
+#     labs(x = "Time", y = "Occupancy Probability", color = "Site")
+# 
+    
+```    
    
+### Create marginal plots (by site): p(time + dist + noise + site + effort)
+```{r echo=FALSE}   
   ## Plot    
      
     #(y ~ dist + site)
-    plot12dist <- ggplot(predsAll[predsAll$effort == effort_mean
-                                         & predsAll$noise == noise_mean
-                                         & predsAll$variable %in% 'det',],
-                            aes(x = dist/1000, y = value, color = group, fill = group)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Distance (km)') +
-      ggtitle('p(distance + noise + effort + site) psi(.)') +
-      geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
-      facet_grid(~ site) + theme_bw()
+    # plot12dist <- ggplot(predsAll[predsAll$effort == effort_mean
+    #                                      & predsAll$noise == noise_mean
+    #                                      & predsAll$variable %in% 'det',],
+    #                         aes(x = dist/1000, y = value, color = group, fill = group)) +
+    #   geom_line() +
+    #   geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
+    #   ylim(0,1) +
+    #   ylab('Weekly detection probability (\u00B1 95 CI)') +
+    #   xlab('Distance (km)') +
+    #   ggtitle('p(distance + noise + effort + site) psi(.)') +
+    #   geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
+    #   facet_grid(~ site) + theme_bw()
 
-    plot12dist
+    # plot12dist
     
     #(y ~ effort + site)
-    plot12effort <- ggplot(predsAll[predsAll$dist == mean(site_covars$dist_actual) 
-                                               & predsAll$noise == noise_mean
-                                               & predsAll$variable %in% 'det',], 
-                         aes(x = effort, y = value, color = group, fill = group)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) +
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Effort') +
-      ggtitle('All detections: p(distance + noise + effort + site) psi(.)') +
-      geom_rug(data = effort_df, aes(x = effort), inherit.aes = FALSE) +
-      facet_grid(~ site) + theme_bw()
-    plot12effort
+    # plot12effort <- ggplot(predsAll[predsAll$dist == mean(site_covars$dist_actual) 
+    #                                            & predsAll$noise == noise_mean
+    #                                            & predsAll$variable %in% 'det',], 
+    #                      aes(x = effort, y = value, color = group, fill = group)) +
+    #   geom_line() +
+    #   geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) +
+    #   ylim(0,1) +
+    #   ylab('Weekly detection probability (\u00B1 95 CI)') +
+    #   xlab('Effort') +
+    #   ggtitle('All detections: p(distance + noise + effort + site) psi(.)') +
+    #   geom_rug(data = effort_df, aes(x = effort), inherit.aes = FALSE) +
+    #   facet_grid(~ site) + theme_bw()
+    # plot12effort
+    # 
+    # #(y ~ noise + site)
+    # plot12noise <- ggplot(predsAll[predsAll$dist == mean(site_covars$dist_actual)
+    #                                & predsAll$effort == effort_mean
+    #                                & predsAll$variable %in% 'det',], 
+    #                      aes(x = noise, y = value, color = group, fill = group)) +
+    #   geom_line() +
+    #   geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) +
+    #   ylim(0,1) +
+    #   ylab('Weekly detection probability (\u00B1 95 CI)') +
+    #   xlab('Noise') +
+    #   ggtitle('All detections: p(distance + noise + effort + site) psi(.)') +
+    #   geom_rug(data = noise_df, aes(x = noise), inherit.aes = FALSE) +
+    #   facet_grid(~ site) + theme_bw()
+    # plot12noise
     
-    #(y ~ noise + site)
-    plot12noise <- ggplot(predsAll[predsAll$dist == mean(site_covars$dist_actual)
-                                   & predsAll$effort == effort_mean
-                                   & predsAll$variable %in% 'det',], 
-                         aes(x = noise, y = value, color = group, fill = group)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) +
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Noise') +
-      ggtitle('All detections: p(distance + noise + effort + site) psi(.)') +
-      geom_rug(data = noise_df, aes(x = noise), inherit.aes = FALSE) +
-      facet_grid(~ site) + theme_bw()
-    plot12noise
+    #(y ~ time + site)
+    # plot12time <- ggplot(predsAll_time, 
+    #                      aes(x = time, y = value, color = group, fill = group)) 
     
 ```
-## 
-## 
-Ok, there is really just one outlier at Miller Creek (MC) with very large effort. 
-Should truncate that or replace with mean.
-There shouldn't be *this* strong of a relationship with effort (it was pretty constant)
+##
 
 ##
 #### Create marginal plots (grouped): p(dist)
@@ -494,67 +1124,67 @@ There shouldn't be *this* strong of a relationship with effort (it was pretty co
   # head(new_covar)
 
   #format distance covar
-  dist_covar <- data.frame('dist' = new_covar$dist)
+#  dist_covar <- data.frame('dist' = new_covar$dist)
   
     #predict
-    det_pred_2any <- predict(p2_any, type = 'det', dist_covar)
-    det_pred_2fem <- predict(p2_fem_fnlcp, type = 'det', dist_covar)
-    det_pred_2mal <- predict(p2_mal_fnlcp, type = 'det', dist_covar)
-    
-    occ_pred_2any <- predict(p2_any, type = 'state', dist_covar)
-    occ_pred_2fem <- predict(p2_fem_fnlcp, type = 'state', dist_covar)
-    occ_pred_2mal <- predict(p2_mal_fnlcp, type = 'state', dist_covar)
-    
-    #Combine covariates with predictions
-    pred_wide_any <- cbind(dist_covar, 'det' = det_pred_2any$Predicted, 'occ' = occ_pred_2any$Predicted)
-    lci_wide_any  <- cbind(dist_covar, 'det' = det_pred_2any$lower, 'occ' = det_pred_2any$lower)
-    uci_wide_any  <- cbind(dist_covar, 'det' = det_pred_2any$upper, 'occ' = det_pred_2any$upper)
-    
-    pred_long_any <- melt(pred_wide_any, id.vars = c('dist'), value.name = 'value')
-    lci_long_any  <- melt(lci_wide_any, id.vars = c('dist'), value.name = 'LCI')
-    uci_long_any  <- melt(uci_wide_any, id.vars = c('dist'), value.name = 'UCI')
-    
-      plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
-    
-    pred_wide_fem <- cbind(dist_covar, 'det' = det_pred_2fem$Predicted, 'occ' = occ_pred_2fem$Predicted)
-    lci_wide_fem  <- cbind(dist_covar, 'det' = det_pred_2fem$lower, 'occ' = det_pred_2fem$lower)
-    uci_wide_fem  <- cbind(dist_covar, 'det' = det_pred_2fem$upper, 'occ' = det_pred_2fem$upper)
-    
-    pred_long_fem <- melt(pred_wide_fem, id.vars = c('dist'), value.name = 'value')
-    lci_long_fem  <- melt(lci_wide_fem, id.vars = c('dist'), value.name = 'LCI')
-    uci_long_fem  <- melt(uci_wide_fem, id.vars = c('dist'), value.name = 'UCI')
-      
-      plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
-  
-    pred_wide_mal <- cbind(dist_covar, 'det' = det_pred_2mal$Predicted, 'occ' = occ_pred_2mal$Predicted)
-    lci_wide_mal  <- cbind(dist_covar, 'det' = det_pred_2mal$lower, 'occ' = det_pred_2mal$lower)
-    uci_wide_mal  <- cbind(dist_covar, 'det' = det_pred_2mal$upper, 'occ' = det_pred_2mal$upper)
-    
-    pred_long_mal <- melt(pred_wide_mal, id.vars = c('dist'), value.name = 'value')
-    lci_long_mal  <- melt(lci_wide_mal, id.vars = c('dist'), value.name = 'LCI')
-    uci_long_mal  <- melt(uci_wide_mal, id.vars = c('dist'), value.name = 'UCI')
-      
-      plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
-
-      
-    #Plot    
-    plot_data_any$group <- 'Any'; plot_data_fem$group <- 'Female'; plot_data_mal$group <- 'Male'
-    plot_combine <- do.call('rbind', list(plot_data_any, plot_data_fem, plot_data_mal))
-    
-    #All together
-    plot_p2_dist <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
-                           aes(x = dist/1000, y = value, color = group, fill = group)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Distance (km)') +
-      ggtitle('p(distance) psi(.)') +
-      geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
-      # facet_grid(~ site) + 
-      theme_bw()
-    plot_p2_dist
-    
+    # det_pred_2any <- predict(p2_any, type = 'det', dist_covar)
+    # det_pred_2fem <- predict(p2_fem_fnlcp, type = 'det', dist_covar)
+    # det_pred_2mal <- predict(p2_mal_fnlcp, type = 'det', dist_covar)
+    # 
+    # occ_pred_2any <- predict(p2_any, type = 'state', dist_covar)
+    # occ_pred_2fem <- predict(p2_fem_fnlcp, type = 'state', dist_covar)
+    # occ_pred_2mal <- predict(p2_mal_fnlcp, type = 'state', dist_covar)
+    # 
+    # #Combine covariates with predictions
+    # pred_wide_any <- cbind(dist_covar, 'det' = det_pred_2any$Predicted, 'occ' = occ_pred_2any$Predicted)
+    # lci_wide_any  <- cbind(dist_covar, 'det' = det_pred_2any$lower, 'occ' = det_pred_2any$lower)
+    # uci_wide_any  <- cbind(dist_covar, 'det' = det_pred_2any$upper, 'occ' = det_pred_2any$upper)
+    # 
+    # pred_long_any <- melt(pred_wide_any, id.vars = c('dist'), value.name = 'value')
+    # lci_long_any  <- melt(lci_wide_any, id.vars = c('dist'), value.name = 'LCI')
+    # uci_long_any  <- melt(uci_wide_any, id.vars = c('dist'), value.name = 'UCI')
+    # 
+    #   plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
+    # 
+    # pred_wide_fem <- cbind(dist_covar, 'det' = det_pred_2fem$Predicted, 'occ' = occ_pred_2fem$Predicted)
+    # lci_wide_fem  <- cbind(dist_covar, 'det' = det_pred_2fem$lower, 'occ' = det_pred_2fem$lower)
+    # uci_wide_fem  <- cbind(dist_covar, 'det' = det_pred_2fem$upper, 'occ' = det_pred_2fem$upper)
+    # 
+    # pred_long_fem <- melt(pred_wide_fem, id.vars = c('dist'), value.name = 'value')
+    # lci_long_fem  <- melt(lci_wide_fem, id.vars = c('dist'), value.name = 'LCI')
+    # uci_long_fem  <- melt(uci_wide_fem, id.vars = c('dist'), value.name = 'UCI')
+    #   
+    #   plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
+    # 
+    # pred_wide_mal <- cbind(dist_covar, 'det' = det_pred_2mal$Predicted, 'occ' = occ_pred_2mal$Predicted)
+    # lci_wide_mal  <- cbind(dist_covar, 'det' = det_pred_2mal$lower, 'occ' = det_pred_2mal$lower)
+    # uci_wide_mal  <- cbind(dist_covar, 'det' = det_pred_2mal$upper, 'occ' = det_pred_2mal$upper)
+    # 
+    # pred_long_mal <- melt(pred_wide_mal, id.vars = c('dist'), value.name = 'value')
+    # lci_long_mal  <- melt(lci_wide_mal, id.vars = c('dist'), value.name = 'LCI')
+    # uci_long_mal  <- melt(uci_wide_mal, id.vars = c('dist'), value.name = 'UCI')
+    #   
+    #   plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
+    # 
+    #   
+    # #Plot    
+    # plot_data_any$group <- 'Any'; plot_data_fem$group <- 'Female'; plot_data_mal$group <- 'Male'
+    # plot_combine <- do.call('rbind', list(plot_data_any, plot_data_fem, plot_data_mal))
+    # 
+    # #All together
+    # plot_p2_dist <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
+    #                        aes(x = dist/1000, y = value, color = group, fill = group)) +
+    #   geom_line() +
+    #   geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
+    #   ylim(0,1) +
+    #   ylab('Weekly detection probability (\u00B1 95 CI)') +
+    #   xlab('Distance (km)') +
+    #   ggtitle('p(distance) psi(.)') +
+    #   geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
+    #   # facet_grid(~ site) + 
+    #   theme_bw()
+    # plot_p2_dist
+    # 
       
 ```
 
@@ -566,213 +1196,100 @@ There shouldn't be *this* strong of a relationship with effort (it was pretty co
   # head(new_covar)
   
   #create 'nest' covar
-  nest_grid <- unique(site_covars$nested)
-  nest_covar <- expand.grid('dist' = dist_grid, 'nest' = nest_grid)
-  
-    #predict
-    det_pred_4any <- predict(p4_any, type = 'det', nest_covar)
-    det_pred_4fem <- predict(p4_fem_fnlcp, type = 'det', nest_covar)
-    det_pred_4mal <- predict(p4_mal_fnlcp, type = 'det', nest_covar)
-    
-    occ_pred_4any <- predict(p4_any, type = 'state', nest_covar)
-    occ_pred_4fem <- predict(p4_fem_fnlcp, type = 'state', nest_covar)
-    occ_pred_4mal <- predict(p4_mal_fnlcp, type = 'state', nest_covar)
-
-    #Combine covariates with predictions
-    pred_wide_any <- cbind(nest_covar, 'det' = det_pred_4any$Predicted, 'occ' = occ_pred_4any$Predicted)
-    lci_wide_any  <- cbind(nest_covar, 'det' = det_pred_4any$lower, 'occ' = det_pred_4any$lower)
-    uci_wide_any  <- cbind(nest_covar, 'det' = det_pred_4any$upper, 'occ' = det_pred_4any$upper)
-    
-    pred_long_any <- melt(pred_wide_any, id.vars = c('nest','dist'), value.name = 'value')
-    lci_long_any  <- melt(lci_wide_any, id.vars = c('nest','dist'), value.name = 'LCI')
-    uci_long_any  <- melt(uci_wide_any, id.vars = c('nest','dist'), value.name = 'UCI')
-    
-      plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
-    
-    pred_wide_fem <- cbind(nest_covar, 'det' = det_pred_4fem$Predicted, 'occ' = occ_pred_4fem$Predicted)
-    lci_wide_fem  <- cbind(nest_covar, 'det' = det_pred_4fem$lower, 'occ' = det_pred_4fem$lower)
-    uci_wide_fem  <- cbind(nest_covar, 'det' = det_pred_4fem$upper, 'occ' = det_pred_4fem$upper)
-    
-    pred_long_fem <- melt(pred_wide_fem, id.vars = c('nest','dist'), value.name = 'value')
-    lci_long_fem  <- melt(lci_wide_fem, id.vars = c('nest','dist'), value.name = 'LCI')
-    uci_long_fem  <- melt(uci_wide_fem, id.vars = c('nest','dist'), value.name = 'UCI')
-    
-      plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
-    
-    pred_wide_mal <- cbind(nest_covar, 'det' = det_pred_4mal$Predicted, 'occ' = occ_pred_4mal$Predicted)
-    lci_wide_mal  <- cbind(nest_covar, 'det' = det_pred_4mal$lower, 'occ' = det_pred_4mal$lower)
-    uci_wide_mal  <- cbind(nest_covar, 'det' = det_pred_4mal$upper, 'occ' = det_pred_4mal$upper)
-    
-    pred_long_mal <- melt(pred_wide_mal, id.vars = c('nest','dist'), value.name = 'value')
-    lci_long_mal  <- melt(lci_wide_mal, id.vars = c('nest','dist'), value.name = 'LCI')
-    uci_long_mal  <- melt(uci_wide_mal, id.vars = c('nest','dist'), value.name = 'UCI')
-    
-      plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
-  
-      
-    #Plot    
-    plot_data_any$group <- 'Any'; plot_data_fem$group <- 'Female'; plot_data_mal$group <- 'Male'
-    plot_combine <- do.call('rbind', list(plot_data_any, plot_data_fem, plot_data_mal))
-    
-    site_covars$nest <- site_covars$nested
-    
-    #All together
-    plot_p4_dist <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
-                           aes(x = dist/1000, y = value, color = group, fill = group)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Distance (km)') +
-      ggtitle('p(distance + nest) psi(.)') +
-      geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
-      facet_grid(~ nest) + theme_bw()
-    plot_p4_dist
-    
-
-    plot_p4_dist2 <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
-                           aes(x = dist/1000, y = value, color = nest, fill = nest)) +
-      geom_line() +
-      geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
-      ylim(0,1) +
-      ylab('Weekly detection probability (\u00B1 95 CI)') +
-      xlab('Distance (km)') +
-      ggtitle('p(distance + nest) psi(.)') +
-      geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
-      facet_grid(~ group) + theme_bw()
-    plot_p4_dist2
+  # nest_grid <- unique(site_covars$nested)
+  # nest_covar <- expand.grid('dist' = dist_grid, 'nest' = nest_grid)
+  # 
+  #   #predict
+  #   det_pred_4any <- predict(p4_any, type = 'det', nest_covar)
+  #   det_pred_4fem <- predict(p4_fem_fnlcp, type = 'det', nest_covar)
+  #   det_pred_4mal <- predict(p4_mal_fnlcp, type = 'det', nest_covar)
+  #   
+  #   occ_pred_4any <- predict(p4_any, type = 'state', nest_covar)
+  #   occ_pred_4fem <- predict(p4_fem_fnlcp, type = 'state', nest_covar)
+  #   occ_pred_4mal <- predict(p4_mal_fnlcp, type = 'state', nest_covar)
+  # 
+  #   #Combine covariates with predictions
+  #   pred_wide_any <- cbind(nest_covar, 'det' = det_pred_4any$Predicted, 'occ' = occ_pred_4any$Predicted)
+  #   lci_wide_any  <- cbind(nest_covar, 'det' = det_pred_4any$lower, 'occ' = det_pred_4any$lower)
+  #   uci_wide_any  <- cbind(nest_covar, 'det' = det_pred_4any$upper, 'occ' = det_pred_4any$upper)
+  #   
+  #   pred_long_any <- melt(pred_wide_any, id.vars = c('nest','dist'), value.name = 'value')
+  #   lci_long_any  <- melt(lci_wide_any, id.vars = c('nest','dist'), value.name = 'LCI')
+  #   uci_long_any  <- melt(uci_wide_any, id.vars = c('nest','dist'), value.name = 'UCI')
+  #   
+  #     plot_data_any <- cbind(pred_long_any, 'LCI' = lci_long_any$LCI, 'UCI' = uci_long_any$UCI)
+  #   
+  #   pred_wide_fem <- cbind(nest_covar, 'det' = det_pred_4fem$Predicted, 'occ' = occ_pred_4fem$Predicted)
+  #   lci_wide_fem  <- cbind(nest_covar, 'det' = det_pred_4fem$lower, 'occ' = det_pred_4fem$lower)
+  #   uci_wide_fem  <- cbind(nest_covar, 'det' = det_pred_4fem$upper, 'occ' = det_pred_4fem$upper)
+  #   
+  #   pred_long_fem <- melt(pred_wide_fem, id.vars = c('nest','dist'), value.name = 'value')
+  #   lci_long_fem  <- melt(lci_wide_fem, id.vars = c('nest','dist'), value.name = 'LCI')
+  #   uci_long_fem  <- melt(uci_wide_fem, id.vars = c('nest','dist'), value.name = 'UCI')
+  #   
+  #     plot_data_fem <- cbind(pred_long_fem, 'LCI' = lci_long_fem$LCI, 'UCI' = uci_long_fem$UCI)
+  #   
+  #   pred_wide_mal <- cbind(nest_covar, 'det' = det_pred_4mal$Predicted, 'occ' = occ_pred_4mal$Predicted)
+  #   lci_wide_mal  <- cbind(nest_covar, 'det' = det_pred_4mal$lower, 'occ' = det_pred_4mal$lower)
+  #   uci_wide_mal  <- cbind(nest_covar, 'det' = det_pred_4mal$upper, 'occ' = det_pred_4mal$upper)
+  #   
+  #   pred_long_mal <- melt(pred_wide_mal, id.vars = c('nest','dist'), value.name = 'value')
+  #   lci_long_mal  <- melt(lci_wide_mal, id.vars = c('nest','dist'), value.name = 'LCI')
+  #   uci_long_mal  <- melt(uci_wide_mal, id.vars = c('nest','dist'), value.name = 'UCI')
+  #   
+  #     plot_data_mal <- cbind(pred_long_mal, 'LCI' = lci_long_mal$LCI, 'UCI' = uci_long_mal$UCI)
+  # 
+  #     
+  #   #Plot    
+  #   plot_data_any$group <- 'Any'; plot_data_fem$group <- 'Female'; plot_data_mal$group <- 'Male'
+  #   plot_combine <- do.call('rbind', list(plot_data_any, plot_data_fem, plot_data_mal))
+  #   
+  #   site_covars$nest <- site_covars$nested
+  #   
+  #   #All together
+  #   plot_p4_dist <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
+  #                          aes(x = dist/1000, y = value, color = group, fill = group)) +
+  #     geom_line() +
+  #     geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
+  #     ylim(0,1) +
+  #     ylab('Weekly detection probability (\u00B1 95 CI)') +
+  #     xlab('Distance (km)') +
+  #     ggtitle('p(distance + nest) psi(.)') +
+  #     geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
+  #     facet_grid(~ nest) + theme_bw()
+  #   plot_p4_dist
+  #   
+  # 
+  #   plot_p4_dist2 <- ggplot(plot_combine[plot_combine$variable %in% 'det',], 
+  #                          aes(x = dist/1000, y = value, color = nest, fill = nest)) +
+  #     geom_line() +
+  #     geom_ribbon(aes(ymin = LCI, ymax = UCI), alpha = 0.3, color = NA) + #color=NA to remove outlines
+  #     ylim(0,1) +
+  #     ylab('Weekly detection probability (\u00B1 95 CI)') +
+  #     xlab('Distance (km)') +
+  #     ggtitle('p(distance + nest) psi(.)') +
+  #     geom_rug(data = site_covars, aes(x = dist_actual/1000), inherit.aes = FALSE) +
+  #     facet_grid(~ group) + theme_bw()
+  #   plot_p4_dist2
       
 ```
 
-## 
-### Try models with time-varying 'p'
-
-```{r echo=FALSE, warning=FALSE}
-
-  #ANY detections (constant psi) - time-varying p
-    p1_any_time <- occu(~1                                  ~1, data = input_any)
-    p2_any_time <- occu(~dist                        + time ~1, data = input_any)
-    p3_any_time <- occu(~dist + site                 + time ~1, data = input_any) #top model
-    p4_any_time <- occu(~dist +        nest          + time ~1, data = input_any)
-    p5_any_time <- occu(~dist +               effort + time ~1, data = input_any) 
-    p6_any_time <- occu(~                     effort + time ~1, data = input_any) 
-    p7_any_time <- occu(~dist + site +        effort + time ~1, data = input_any) 
-    p8_any_time <- occu(~dist +        nest + effort + time ~1, data = input_any)
-    p9_any_time <- occu(~                              time ~1, data = input_any)
-    
-    modList_any_time <- fitList('p(.), psi(.)}' = p1_any_time,
-                           'p(dist + time), psi(.)' = p2_any_time,
-                           'p(dist + site + time), psi(.)' = p3_any_time, #top model
-                           'p(dist + nest + time), psi(.)' = p4_any_time,
-                           'p(dist + effort + time), psi(.)' = p5_any_time,
-                           'p(effort) + time, psi(.)' = p6_any_time,
-                           'p(dist + site + effort + time), psi(.)' = p7_any_time,
-                           'p(dist + nest + effort + time), psi(.)' = p8_any_time,
-                           'p(time), psi(.)' = p9_any_time) 
-    modSel(modList_any_time)
-    
-    
-  #FEMALE FNLCP detections (constant psi) - time-varying p
-    p1_fem_fnlcp_time <- occu(~1                                  ~1, data = input_female_fnlcp)
-    p2_fem_fnlcp_time <- occu(~dist                        + time ~1, data = input_female_fnlcp)
-    p3_fem_fnlcp_time <- occu(~dist + site                 + time ~1, data = input_female_fnlcp) #top model
-    p4_fem_fnlcp_time <- occu(~dist +        nest          + time ~1, data = input_female_fnlcp) 
-    p5_fem_fnlcp_time <- occu(~dist +               effort + time ~1, data = input_female_fnlcp) #error (NAs in SE)
-    p6_fem_fnlcp_time <- occu(~                     effort + time ~1, data = input_female_fnlcp)
-    p7_fem_fnlcp_time <- occu(~dist + site +        effort + time ~1, data = input_female_fnlcp) #error (NAs in SE)
-    p8_fem_fnlcp_time <- occu(~dist +        nest + effort + time ~1, data = input_female_fnlcp) #error (NAs in SE)
-    p9_fem_fnlcp_time <- occu(~                              time ~1, data = input_female_fnlcp)
-    
-    modList_femFNLCP_time <- fitList('p(.), psi(.)}' = p1_fem_fnlcp_time,
-                                'p(dist + time), psi(.)' = p2_fem_fnlcp_time,
-                                'p(dist + site + time), psi(.)' = p3_fem_fnlcp_time, #top model
-                                'p(dist + nest + time), psi(.)' = p4_fem_fnlcp_time,
-                                'p(dist + effort + time), psi(.)' = p5_fem_fnlcp_time,
-                                'p(effort) + time, psi(.)' = p6_fem_fnlcp_time,
-                                'p(dist + site + effort + time), psi(.)' = p7_fem_fnlcp_time,
-                                'p(dist + nest + effort + time), psi(.)' = p8_fem_fnlcp_time,
-                                'p(time), psi(.)' = p9_fem_fnlcp_time) 
-    # modSel(modList_femFNLCP_time)
-    
-    
-  #MALE FNLC detections (constant psi) - time-varying p
-    p1_mal_fnlcp_time <- occu(~1                                  ~1, data = input_male_fnlcp)
-    p2_mal_fnlcp_time <- occu(~dist                        + time ~1, data = input_male_fnlcp)
-    p3_mal_fnlcp_time <- occu(~dist + site                 + time ~1, data = input_male_fnlcp) #top model
-    p4_mal_fnlcp_time <- occu(~dist +        nest          + time ~1, data = input_male_fnlcp) 
-    p5_mal_fnlcp_time <- occu(~dist +               effort + time ~1, data = input_male_fnlcp) 
-    p6_mal_fnlcp_time <- occu(~                     effort + time ~1, data = input_male_fnlcp) 
-    p7_mal_fnlcp_time <- occu(~dist + site +        effort + time ~1, data = input_male_fnlcp) #error (NAs in SE)
-    p8_mal_fnlcp_time <- occu(~dist +        nest + effort + time ~1, data = input_male_fnlcp) 
-    p9_mal_fnlcp_time <- occu(~                              time ~1, data = input_male_fnlcp)
-    
-    modList_malFNLCP_time <- fitList('p(.), psi(.)}' = p1_mal_fnlcp_time,
-                                     'p(dist + time), psi(.)' = p2_mal_fnlcp_time,
-                                     'p(dist + site + time), psi(.)' = p3_mal_fnlcp_time, #top model
-                                     'p(dist + nest + time), psi(.)' = p4_mal_fnlcp_time,
-                                     'p(dist + effort + time), psi(.)' = p5_mal_fnlcp_time,
-                                     'p(effort) + time, psi(.)' = p6_mal_fnlcp_time,
-                                     'p(dist + site + effort + time), psi(.)' = p7_mal_fnlcp_time,
-                                     'p(dist + nest + effort + time), psi(.)' = p8_mal_fnlcp_time,
-                                     'p(time), psi(.)' = p9_mal_fnlcp_time) 
-    # modSel(modList_malFNLCP_time) 
-    
-    
-  #Examine results -- do this without site/nest first for simplicity [p(DIST + NEST + TIME) psi(.)]
-    p2_any_time
-    # p2_fem_fnlcp_time
-    # p2_mal_fnlcp_time
-    
-  #Format covariates
-    new_covar_time <- expand.grid('dist' = dist_grid, 'time' = as.character(unique(time)),
-                                  'nest' = nest_grid)
-    
-  #Predict
-    det_pred_p2any_time <- predict(p2_any_time, type = 'det', new_covar_time[,-3])
-    det_pred_p2any_time_df <- cbind(new_covar_time, det_pred_p2any_time)
-
-    det_pred_p2fem_time <- predict(p2_fem_fnlcp_time, type = 'det', new_covar_time[,-3])
-    det_pred_p2fem_time_df <- cbind(new_covar_time, det_pred_p2fem_time)
-    
-    det_pred_p2mal_time <- predict(p2_mal_fnlcp_time, type = 'det', new_covar_time[,-3])
-    det_pred_p2mal_time_df <- cbind(new_covar_time, det_pred_p2mal_time)
-    
-    p_by_week_any <- det_pred_p2any_time_df %>% group_by(time) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-    p_by_week_fem <- det_pred_p2fem_time_df %>% group_by(time) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-    p_by_week_mal <- det_pred_p2mal_time_df %>% group_by(time) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-```
-   
 ##
 #### Create marginal plots (grouped): p(dist + time)
   
 ```{r, echo = FALSE}    
 
   #Any
-    plot_p2_dist_time_any <- ggplot(p_by_week_any, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2any_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Any STOC): p(dist + time)') +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p2_dist_time_any
+    # plot_p2_dist_time_any <- ggplot(p_by_week_any, aes(x = time, y = p_weekly_mean)) +
+    #   geom_point(data = det_pred_p2any_time_df, aes(x = time, y = Predicted), 
+    #              color = 'lightgray', size = 0.5) +
+    #   geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
+    #   ylim(0,1) +
+    #   xlab('Week') + ylab('Detection probability') +
+    #   ggtitle('Detection probability (Any STOC): p(dist + time)') +
+    #   theme_bw() +
+    #   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+    # plot_p2_dist_time_any
     
     # ggplot(det_pred_p2any_time_df, aes(x = time, y = Predicted)) +
     #   geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
@@ -783,16 +1300,16 @@ There shouldn't be *this* strong of a relationship with effort (it was pretty co
     #   theme_bw()
     
   #Female
-    plot_p2_dist_time_fem <- ggplot(p_by_week_fem, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2fem_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'tomato') +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Female STOC): p(dist + time)') +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p2_dist_time_fem
+    # plot_p2_dist_time_fem <- ggplot(p_by_week_fem, aes(x = time, y = p_weekly_mean)) +
+    #   geom_point(data = det_pred_p2fem_time_df, aes(x = time, y = Predicted), 
+    #              color = 'lightgray', size = 0.5) +
+    #   geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'tomato') +
+    #   ylim(0,1) +
+    #   xlab('Week') + ylab('Detection probability') +
+    #   ggtitle('Detection probability (Female STOC): p(dist + time)') +
+    #   theme_bw() +
+    #   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+    # plot_p2_dist_time_fem
     
     # ggplot(det_pred_p2fem_time_df, aes(x = time, y = Predicted)) +
     #   geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
@@ -803,18 +1320,18 @@ There shouldn't be *this* strong of a relationship with effort (it was pretty co
     #   theme_bw()
 
   #Male
-    plot_p2_dist_time_mal <- ggplot(p_by_week_mal, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2mal_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-                 # position = position_jitter(width = 0.1)) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'cyan3') +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Male STOC): p(dist + time)') +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p2_dist_time_mal
-    
+    # plot_p2_dist_time_mal <- ggplot(p_by_week_mal, aes(x = time, y = p_weekly_mean)) +
+    #   geom_point(data = det_pred_p2mal_time_df, aes(x = time, y = Predicted), 
+    #              color = 'lightgray', size = 0.5) +
+    #              # position = position_jitter(width = 0.1)) +
+    #   geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'cyan3') +
+    #   ylim(0,1) +
+    #   xlab('Week') + ylab('Detection probability') +
+    #   ggtitle('Detection probability (Male STOC): p(dist + time)') +
+    #   theme_bw() +
+    #   theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+    # plot_p2_dist_time_mal
+    # 
     # ggplot(det_pred_p2mal_time_df, aes(x = time, y = Predicted)) +
     #   geom_boxplot(outlier.colour = 'black', outlier.shape = 16,
     #                outlier.size = 2, notch = TRUE) +
@@ -834,76 +1351,76 @@ There shouldn't be *this* strong of a relationship with effort (it was pretty co
   # p4_fem_fnlcp_time
   # p4_mal_fnlcp_time
   
-  #Predict
-    det_pred_p4any_time <- predict(p4_any_time, type = 'det', new_covar_time)
-    det_pred_p4any_time_df <- cbind(new_covar_time, det_pred_p4any_time)
-    
-    det_pred_p4fem_time <- predict(p4_fem_fnlcp_time, type = 'det', new_covar_time)
-    det_pred_p4fem_time_df <- cbind(new_covar_time, det_pred_p4fem_time)
-    
-    det_pred_p4mal_time <- predict(p4_mal_fnlcp_time, type = 'det', new_covar_time)
-    det_pred_p4mal_time_df <- cbind(new_covar_time, det_pred_p4mal_time)
-    
-    p_by_week_any <- det_pred_p4any_time_df %>% group_by(time, nest) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-    p_by_week_fem <- det_pred_p4fem_time_df %>% group_by(time, nest) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-    p_by_week_mal <- det_pred_p4mal_time_df %>% group_by(time, nest) %>%
-      summarise(p_weekly_mean = mean(Predicted),
-                p_weekly_lci  = mean(lower),
-                p_weekly_uci  = mean(upper),
-                .groups = 'drop')
-    
-  ## Plot
-    
-  #Any
-    plot_p4_dist_time_any <- ggplot(p_by_week_any, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2any_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Any STOC): p(dist + nest + time)') +
-      facet_grid(~nest) +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p4_dist_time_any
-
-  #Female
-    plot_p4_dist_time_fem <- ggplot(p_by_week_fem, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2fem_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'tomato') +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Female STOC): p(dist + nest + time)') +
-      facet_grid(~nest) +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p4_dist_time_fem
-    
-  #Male
-    plot_p4_dist_time_mal <- ggplot(p_by_week_mal, aes(x = time, y = p_weekly_mean)) +
-      geom_point(data = det_pred_p2mal_time_df, aes(x = time, y = Predicted), 
-                 color = 'lightgray', size = 0.5) +
-      # position = position_jitter(width = 0.1)) +
-      geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'cyan3') +
-      ylim(0,1) +
-      xlab('Week') + ylab('Detection probability') +
-      ggtitle('Detection probability (Male STOC): p(dist + nest + time)') +
-      facet_grid(~nest) +
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
-    plot_p4_dist_time_mal
-
+  # #Predict
+  #   det_pred_p4any_time <- predict(p4_any_time, type = 'det', new_covar_time)
+  #   det_pred_p4any_time_df <- cbind(new_covar_time, det_pred_p4any_time)
+  #   
+  #   det_pred_p4fem_time <- predict(p4_fem_fnlcp_time, type = 'det', new_covar_time)
+  #   det_pred_p4fem_time_df <- cbind(new_covar_time, det_pred_p4fem_time)
+  #   
+  #   det_pred_p4mal_time <- predict(p4_mal_fnlcp_time, type = 'det', new_covar_time)
+  #   det_pred_p4mal_time_df <- cbind(new_covar_time, det_pred_p4mal_time)
+  #   
+  #   p_by_week_any <- det_pred_p4any_time_df %>% group_by(time, nest) %>%
+  #     summarise(p_weekly_mean = mean(Predicted),
+  #               p_weekly_lci  = mean(lower),
+  #               p_weekly_uci  = mean(upper),
+  #               .groups = 'drop')
+  #   
+  #   p_by_week_fem <- det_pred_p4fem_time_df %>% group_by(time, nest) %>%
+  #     summarise(p_weekly_mean = mean(Predicted),
+  #               p_weekly_lci  = mean(lower),
+  #               p_weekly_uci  = mean(upper),
+  #               .groups = 'drop')
+  #   
+  #   p_by_week_mal <- det_pred_p4mal_time_df %>% group_by(time, nest) %>%
+  #     summarise(p_weekly_mean = mean(Predicted),
+  #               p_weekly_lci  = mean(lower),
+  #               p_weekly_uci  = mean(upper),
+  #               .groups = 'drop')
+  #   
+  # ## Plot
+  #   
+  # #Any
+  #   plot_p4_dist_time_any <- ggplot(p_by_week_any, aes(x = time, y = p_weekly_mean)) +
+  #     geom_point(data = det_pred_p2any_time_df, aes(x = time, y = Predicted), 
+  #                color = 'lightgray', size = 0.5) +
+  #     geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci)) +
+  #     ylim(0,1) +
+  #     xlab('Week') + ylab('Detection probability') +
+  #     ggtitle('Detection probability (Any STOC): p(dist + nest + time)') +
+  #     facet_grid(~nest) +
+  #     theme_bw() +
+  #     theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+  #   plot_p4_dist_time_any
+  # 
+  # #Female
+  #   plot_p4_dist_time_fem <- ggplot(p_by_week_fem, aes(x = time, y = p_weekly_mean)) +
+  #     geom_point(data = det_pred_p2fem_time_df, aes(x = time, y = Predicted), 
+  #                color = 'lightgray', size = 0.5) +
+  #     geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'tomato') +
+  #     ylim(0,1) +
+  #     xlab('Week') + ylab('Detection probability') +
+  #     ggtitle('Detection probability (Female STOC): p(dist + nest + time)') +
+  #     facet_grid(~nest) +
+  #     theme_bw() +
+  #     theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+  #   plot_p4_dist_time_fem
+  #   
+  # #Male
+  #   plot_p4_dist_time_mal <- ggplot(p_by_week_mal, aes(x = time, y = p_weekly_mean)) +
+  #     geom_point(data = det_pred_p2mal_time_df, aes(x = time, y = Predicted), 
+  #                color = 'lightgray', size = 0.5) +
+  #     # position = position_jitter(width = 0.1)) +
+  #     geom_pointrange(aes(ymin = p_weekly_lci, ymax = p_weekly_uci), color = 'cyan3') +
+  #     ylim(0,1) +
+  #     xlab('Week') + ylab('Detection probability') +
+  #     ggtitle('Detection probability (Male STOC): p(dist + nest + time)') +
+  #     facet_grid(~nest) +
+  #     theme_bw() +
+  #     theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust = 1))
+  #   plot_p4_dist_time_mal
+  # 
     
 ```
 
