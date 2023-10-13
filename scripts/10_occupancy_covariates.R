@@ -60,8 +60,52 @@ library(tidyverse)
 
     
 ## NR habitat ------------------------------------------------------------------
-    
-    
+  #read in db from my GIS files  
+  gis_21 <- fread('/Users/caraappel/Documents/_RESEARCH/GIS/ActivityCenters/COA_AC_2021_STN/COA_AC_2021_STN.csv')
+  # gis_22 <- fread('/Users/caraappel/Documents/_RESEARCH/GIS/ActivityCenters/AC_2022_locations/ac_2022_locations_1.csv') #don't actually need this
+  
+  #read in NR tables from Julie
+  nr_21_mean <- fread('/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/mn_cts_500mBUFF_2021.csv')
+  nr_22_mean <- fread('/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/nsoCTS_500m_2022c.csv')
+  nr_21_sum <- fread('/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/nsoHAB_500m_2021.csv')
+  nr_22_sum <- fread('/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/nsoHAB_500m_2022c.csv')
+  
+  #merge mean and sum tables
+  nr_21 <- merge(nr_21_mean, nr_21_sum, by = c('OID_','STN_ID','ZONE_CODE'))
+  nr_22 <- merge(nr_22_mean, nr_22_sum, by = c('OID_','stn','ZONE_CODE'))
+  
+  #match with site names (2021)
+  nr_21$SITE_STN <- gis_21$SITESTN[match(nr_21$STN_ID, gis_21$STN_ID)]
+  
+  #format site names (2022)
+  nr_22$stn_no <- substr(nr_22$stn, nchar(nr_22$stn)-1, nchar(nr_22$stn))
+  nr_22$site <- ifelse(grepl('Baker', nr_22$stn), 'BC',
+                       ifelse(grepl('Drift', nr_22$stn), 'DC',
+                              ifelse(grepl('Cummins', nr_22$stn), 'CC',
+                                     ifelse(grepl('Limpy', nr_22$stn), 'LM', NA))))
+  table(nr_22$site, useNA = 'a')
+  nr_22$SITE_STN <- paste(nr_22$site, nr_22$stn_no, sep = '_')
+  
+  #save
+  write.csv(nr_21, '/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/nr_cleaned_2021.csv')
+  write.csv(nr_22, '/Users/caraappel/Documents/_RESEARCH/Activity centers/nr_hab_covar/nr_cleaned_2022.csv')
+  
+  #append to site-level tables and save
+  site21$nr_mean <- nr_21$MEAN[match(site21$site_stn, nr_21$SITE_STN)]
+  site21$nr_sum  <- nr_21$SUM[match(site21$site_stn, nr_21$SITE_STN)]
+  
+  site22$nr_mean <- nr_22$MEAN[match(site22$site_stn, nr_22$SITE_STN)]
+  site22$nr_sum  <- nr_22$SUM[match(site22$site_stn, nr_22$SITE_STN)]
+  
+  saveRDS(list(site21, site22), 'output/10_occ_covariates/10_site_covariates.rds')
+  sites_21_22 <- rbind(site21, site22)
+ 
+  write.csv(site21, 'output/10_occ_covariates/10_site_level_2021.csv')
+  write.csv(site22, 'output/10_occ_covariates/10_site_level_2022.csv')
+  write.csv(sites_21_22, 'output/10_occ_covariates/10_site_level_2021-2022.csv')
+    #most recent 10/09/23 
+    #need to add barred owl data too (scroll down)
+  
   
 ## SURVEY-LEVEL ----------------------------------------------------------------
 
@@ -230,9 +274,31 @@ library(tidyverse)
   head(noise21)
   head(noise22)   #use 'durS' from this
   
-  #standardize daily 'durS'
-  effort21 <- noise21; effort21$durS_std <- scale(effort21$durS)
-  effort22 <- noise22; effort22$durS_std <- scale(effort22$durS)
+  effort21 <- noise21;   effort22 <- noise22
+  
+  #correct sites with ~continuous recording
+  max(effort21$durS); mean(effort21$durS)
+  max(effort22$durS); mean(effort22$durS)
+  
+    #what's the intended recording amount? 
+      #2.5 hours at sunrise + 2.5 hrs at sunset + 10 min for 3 hours = 5.5 hrs = 19800 seconds
+      #but there's rounding, so how about change anything above 6 hrs (21600 sec) to 6 hrs
+  
+      View(effort21[effort21$durS > 21600,]) #we didn't get any spotted owls these sites/weeks anyway
+      View(effort22[effort22$durS > 21600,]) #we did get spotted owls at DC_12 weeks 7 and 12, but other weeks as well
+      
+    #change these to 21600
+    effort21[effort21$durS > 21600,]$durS <- 21600
+    effort22[effort22$durS > 21600,]$durS <- 21600
+    
+    max(effort21$durS); mean(effort21$durS) #good
+    max(effort22$durS); mean(effort22$durS) #good
+    
+  #now standardize durS
+  effort21$durS_std <- scale(effort21$durS)
+  effort22$durS_std <- scale(effort22$durS)
+  
+    #skip to years combined below or continue from here  
   
   #summarize 'durS' by week
   effort21_wk <- group_by(effort21, week_st, site_name) %>% summarise(totalS = sum(durS))
@@ -350,20 +416,22 @@ library(tidyverse)
   stva22 <- fread('2022/AC_2022_PREDICTIONS/stva_daily_counts_adjusted_2022.csv')
     head(stva22)  
     
-  #load in week dates and match them up (staggered)
-  dates21 <- fread('output/08_weekly_dates_staggered_2021.csv')    
-  dates22 <- fread('output/08_weekly_dates_staggered_2022.csv')
-  
-  stva21$week_st <- dates21$week[match(stva21$Date, dates21$date)]
-  stva22$week_st <- dates22$week[match(stva22$Date, dates22$date)]
-  
   #combine all barred owl call types
   stva21$STVA_ANY <- stva21$INSP + stva21$STVA + stva21$STVA_IRREG
   stva22$STVA_ANY <- stva22$INSP + stva22$STVA + stva22$STVA_IRREG
   
   #standardize daily 'STVA_ANY'
   stva21$STVA_ANY_std <- scale(stva21$STVA_ANY)
-  stva22$STVA_ANY_std <- scale(stva22$STVA_ANY)
+  stva22$STVA_ANY_std <- scale(stva22$STVA_ANY)    
+    
+    #skip to below for both years combined, or continue for years individually
+    
+  #load in week dates and match them up (staggered)
+  dates21 <- fread('output/08_weekly_dates_staggered_2021.csv')    
+  dates22 <- fread('output/08_weekly_dates_staggered_2022.csv')
+  
+  stva21$week_st <- dates21$week[match(stva21$Date, dates21$date)]
+  stva22$week_st <- dates22$week[match(stva22$Date, dates22$date)]
   
   #summarize 'STVA_ANY' by week (total)
   stva21_wk <- group_by(stva21, week_st, Site) %>% summarise(STVA_ANY = sum(STVA_ANY))
@@ -427,7 +495,7 @@ library(tidyverse)
     # stva22 <- merge(stva22, dates22_left[,c('Site','Date','week_left')], by = c('Site','Date'), all.x = TRUE)
     
   #load in weeks (matching dates for both years)
-    dates
+    dates <- fread('output/08_weekly_dates_staggered_21-22.csv')
   
   #match up
   stva21$week_stag <- dates$week[match(stva21$Date, dates$date_2021)]
@@ -436,7 +504,7 @@ library(tidyverse)
   #convert weeks to integers so they sort correctly
     # stva21$week_left <- as.integer(stva21$week_left)
     # stva22$week_left <- as.integer(stva22$week_left)
-    class(stva21$week_stag); class(stva22$week_stag)
+    class(stva21$week_stag); class(stva22$week_stag) #already integers
   
   #summarize 'STVA_ANY' by week (left)
     # stva21_wk_left <- group_by(stva21, week_left, Site) %>% summarise(STVA_ANY = sum(STVA_ANY))
@@ -462,15 +530,15 @@ library(tidyverse)
     stva22_wk_stag_wide_std <- pivot_wider(stva22_wk_stag, id_cols = Site, names_from = week_stag, values_from = STVA_ANY_std)
     
   #sort by site name
-  # stva21_wk_left_wide <- stva21_wk_left_wide[order(stva21_wk_left_wide$Site),]
-  # stva21_wk_left_wide_std <- stva21_wk_left_wide_std[order(stva21_wk_left_wide_std$Site),]
-  stva21_wk_stag_wide <- stva21_wk_stag_wide[order(stva21_wk_stag_wide$Site),]
-  stva21_wk_stag_wide_std <- stva21_wk_stag_wide_std[order(stva21_wk_stag_wide_std$Site),]
-  
-  # stva22_wk_left_wide <- stva22_wk_left_wide[order(stva22_wk_left_wide$Site),]
-  # stva22_wk_left_wide_std <- stva22_wk_left_wide_std[order(stva22_wk_left_wide_std$Site),]
-  stva22_wk_stag_wide <- stva22_wk_stag_wide[order(stva22_wk_stag_wide$Site),]
-  stva22_wk_stag_wide_std <- stva22_wk_stag_wide_std[order(stva22_wk_stag_wide_std$Site),]
+    # stva21_wk_left_wide <- stva21_wk_left_wide[order(stva21_wk_left_wide$Site),]
+    # stva21_wk_left_wide_std <- stva21_wk_left_wide_std[order(stva21_wk_left_wide_std$Site),]
+    stva21_wk_stag_wide <- stva21_wk_stag_wide[order(stva21_wk_stag_wide$Site),]
+    stva21_wk_stag_wide_std <- stva21_wk_stag_wide_std[order(stva21_wk_stag_wide_std$Site),]
+    
+    # stva22_wk_left_wide <- stva22_wk_left_wide[order(stva22_wk_left_wide$Site),]
+    # stva22_wk_left_wide_std <- stva22_wk_left_wide_std[order(stva22_wk_left_wide_std$Site),]
+    stva22_wk_stag_wide <- stva22_wk_stag_wide[order(stva22_wk_stag_wide$Site),]
+    stva22_wk_stag_wide_std <- stva22_wk_stag_wide_std[order(stva22_wk_stag_wide_std$Site),]
   
   #combine years together
   
@@ -495,5 +563,63 @@ library(tidyverse)
   write.csv(stva_weekly_combined_raw, 'output/10_occ_covariates/10_stva_weekly_raw_21-22.csv')
   write.csv(stva_weekly_combined_std, 'output/10_occ_covariates/10_stva_weekly_std_21-22.csv')
   
+  #convert to site-level
+  stva_weekly_combined_raw <- stva_weekly_combined_raw %>%
+    rowwise() %>%
+    mutate(n_detections = sum(c_across(c(2:21,23:24)), na.rm = TRUE))
+  write.csv(stva_weekly_combined_raw[,c('Site','n_detections')], 'output/10_occ_covariates/10_stva_wekly_raw_21-22_site.csv')
+  
 
-  # 
+## Barred owls (number of days with detections per week) -- staggered with matching week dates for both years ------------
+  head(stva21)
+  head(stva22)
+
+  #summarize 'STVA_ANY' by week (how many days had detections each week)
+  stva21_wk_stag_days <- group_by(stva21, week_stag, Site) %>% summarise(STVA_ANY_Days = length(STVA_ANY[STVA_ANY > 0]))
+  stva22_wk_stag_days <- group_by(stva22, week_stag, Site) %>% summarise(STVA_ANY_Days = length(STVA_ANY[STVA_ANY > 0]))
+  
+  #standardize?
+  stva21_wk_stag_days$STVA_ANY_Days_std <- scale(stva21_wk_stag_days$STVA_ANY_Days)
+  stva22_wk_stag_days$STVA_ANY_Days_std <- scale(stva22_wk_stag_days$STVA_ANY_Days)
+  
+  #convert to wide
+  stva21_wk_stag_days_wide     <- pivot_wider(stva21_wk_stag_days, id_cols = Site, names_from = week_stag, values_from = STVA_ANY_Days)
+  stva21_wk_stag_days_wide_std <- pivot_wider(stva21_wk_stag_days, id_cols = Site, names_from = week_stag, values_from = STVA_ANY_Days_std)
+
+  stva22_wk_stag_days_wide     <- pivot_wider(stva22_wk_stag_days, id_cols = Site, names_from = week_stag, values_from = STVA_ANY_Days)
+  stva22_wk_stag_days_wide_std <- pivot_wider(stva22_wk_stag_days, id_cols = Site, names_from = week_stag, values_from = STVA_ANY_Days_std)
+
+  #sort by site name
+  stva21_wk_stag_days_wide     <- stva21_wk_stag_days_wide[order(stva21_wk_stag_days_wide$Site),]
+  stva21_wk_stag_days_wide_std <- stva21_wk_stag_days_wide_std[order(stva21_wk_stag_days_wide_std$Site),]
+  
+  stva22_wk_stag_days_wide     <- stva22_wk_stag_days_wide[order(stva22_wk_stag_days_wide$Site),]
+  stva22_wk_stag_days_wide_std <- stva22_wk_stag_days_wide_std[order(stva22_wk_stag_days_wide_std$Site),]
+
+  #combine years together
+  stva21_wk_stag_days_wide$year <- '2021'; stva22_wk_stag_days_wide$year <- '2022'
+  stva21_wk_stag_days_wide_std$year <- '2021'; stva22_wk_stag_days_wide_std$year <- '2022'
+  
+  stva_weekly_days_combined_raw <- bind_rows(stva21_wk_stag_days_wide, stva22_wk_stag_days_wide)
+  stva_weekly_days_combined_std <- bind_rows(stva21_wk_stag_days_wide_std, stva22_wk_stag_days_wide_std)
+
+  #save
+  write.csv(stva_weekly_days_combined_raw, 'output/10_occ_covariates/10_stva_daysPerWeek_raw_21-22.csv')
+  write.csv(stva_weekly_days_combined_std, 'output/10_occ_covariates/10_stva_daysPerWeek_std_21-22.csv')
+  
+  #convert to site-level
+  stva_weekly_days_combined_raw <- stva_weekly_days_combined_raw %>%
+    rowwise() %>%
+    mutate(n_days = sum(c_across(c(2:21,23:24)), na.rm = TRUE))
+  write.csv(stva_weekly_days_combined_raw[,c('Site','n_days'),], 'output/10_occ_covariates/10_stva_daysPerWeek_raw_21-22_site.csv')
+  
+
+## Add stva to site-level
+  site_level <- fread('output/10_occ_covariates/10_site_level_2021-2022.csv')
+    head(site_level)
+
+  site_level$bo_total <- stva_weekly_combined_raw$n_detections[match(site_level$site_stn, stva_weekly_combined_raw$Site)]
+  site_level$bo_days  <- stva_weekly_days_combined_raw$n_days[match(site_level$site_stn, stva_weekly_days_combined_raw$Site)]
+
+  write.csv(site_level, 'output/10_occ_covariates/10_site_level_2021-2022.csv')  
+  

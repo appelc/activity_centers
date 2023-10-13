@@ -4,7 +4,7 @@ library(data.table)
 library(reshape2)
 library(dplyr)
 
-## Any STOC --------------------------------------------------------------------
+## Any STOC (all calls ) -------------------------------------------------------
 
   ## Use left-justified detection histories for combined years
     # dh_any_21 <- fread('output/08_weekly_dethist_left/08_dh_ac_2021_stocAny_left.csv')
@@ -32,7 +32,32 @@ library(dplyr)
     # write.csv(dh_any, 'output/08_weekly_dethist_left/08_dh_ac_combined_stocAny_left.csv')
    write.csv(dh_any, 'output/08_weekly_dethist_stag_both/08_dh_ac_combined_stocAny_stag.csv')
   
-
+   
+## Any STOC (FNLC only) --------------------------------------------------------
+   
+   ## Use staggered-entry detection histories where calendar dates match both years
+   dh_anyFNLC_21 <- fread('output/08_weekly_dethist_stag_both/08_dh_ac_2021_stoc4n_staggered.csv') #2021 weeks are good
+   dh_anyFNLC_22 <- fread('output/08_weekly_dethist_stag_both/08_dh_ac_2022_stoc4n_stag_both.csv') #I updated 2022 weeks to match
+   
+   ## Make sure sites are sorted alphabetically by site name, then delete that column  
+   dh_anyFNLC_21 <- dh_anyFNLC_21[order(dh_anyFNLC_21$SITE_STN),]; dh_anyFNLC_21 <- data.frame(dh_anyFNLC_21)
+     rownames(dh_anyFNLC_21) <- paste('2021', dh_anyFNLC_21$SITE_STN, sep = '_')
+     dh_anyFNLC_21 <- dh_anyFNLC_21[,-c(1:3, 24:25)]
+   dh_anyFNLC_22 <- dh_anyFNLC_22[order(dh_anyFNLC_22$SITE_STN),]; dh_anyFNLC_22 <- data.frame(dh_anyFNLC_22)
+     rownames(dh_anyFNLC_22) <- paste('2022', dh_anyFNLC_22$SITE_STN, sep = '_')
+     dh_anyFNLC_22 <- dh_anyFNLC_22[,-c(1:3, 26:27)]
+   
+   ## Combine years
+   dh_anyFNLC <- bind_rows(dh_anyFNLC_21, dh_anyFNLC_22)
+   
+   ## Convert to binary
+   dh_anyFNLC[dh_anyFNLC > 0] <- 1
+   
+   ## Save
+   # write.csv(dh_any, 'output/08_weekly_dethist_left/08_dh_ac_combined_stocAny_left.csv')
+   write.csv(dh_any, 'output/08_weekly_dethist_stag_both/08_dh_ac_combined_stocAnyFNLC_stag.csv')
+   
+   
 ## Female ----------------------------------------------------------------------
     
   ## Use left-justified detection histories for combined years    

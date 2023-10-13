@@ -110,7 +110,7 @@ ac22_male_dh <- fread('output/08_weekly_dethist_left/08_dh_ac_2022_stocMale_left
   #plot (raw number with effort line)
   ggplot(sitesDet, aes(x = week, y = nSitesDet, color = sex)) +
     geom_point(size = 2) +
-    geom_line() +
+    #geom_line() +
     geom_line(aes(y = nSitesSurv), color = 'black') +
     facet_grid(rows = vars(sex), cols = vars(site)) +
     ylab('Proportion of stations with detection') + 

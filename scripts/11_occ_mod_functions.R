@@ -6,8 +6,8 @@ occPred <- function(modname, new_data, nickname){ #nickname argument not working
   nickname <- as.character(nickname)
   
   #predict
-  detPreds <- predict(modname, type = 'det', new_data)
-  occPreds <- predict(modname, type = 'state', new_data)
+  detPreds <- unmarked::predict(modname, type = 'det', new_data)
+  occPreds <- unmarked::predict(modname, type = 'state', new_data)
   
   #combine covariates with predictions
   predWide <- cbind(new_data, 'det' = detPreds$Predicted, 'occ' = occPreds$Predicted)
@@ -19,7 +19,7 @@ occPred <- function(modname, new_data, nickname){ #nickname argument not working
   uciLong  <- melt(uciWide, id.vars = names(new_data), value.name = 'UCI')
   
   predData <- cbind(predLong, 'LCI' = lciLong$LCI, 'UCI' = uciLong$UCI)
-  predData$group <- nickname
+  predData$group <- rep(nickname, nrow(predData))
   
   return(predData)
   
